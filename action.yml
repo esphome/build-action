@@ -1,0 +1,31 @@
+name: 'ESPHome Builder'
+description: 'Builds ESPHome binaries'
+inputs:
+  yaml_file:
+    description: 'YAML file to use'
+    required: true
+    type: string
+runs:
+  using: 'composite'
+  steps:
+    - name: Get name
+      id: name
+      shell: bash
+      run: |
+        filename=$(basename -- "${{ inputs.yaml_file }}")
+        filename="${filename%.*}"
+        echo ::set-output name=name::$filename
+    - uses: actions/cache@v2
+      with:
+        path: |
+          /cache
+        key: ${{ runner.os }}-${{ inputs.yaml_file }}
+    - run: mkdir -p /cache
+      shell: bash
+    - name: Compile binary
+      uses: 'docker://ghcr.io/esphome/esphome:latest'
+      with:
+        args: compile ${{ inputs.yaml_file }}
+    - name: Gather binaries and generate manifest
+      shell: bash
+      run: python get_flash_images.py ${{ inputs.yaml_file }}
