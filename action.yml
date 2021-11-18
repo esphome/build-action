@@ -1,17 +1,18 @@
-name: 'ESPHome Builder'
-description: 'Builds ESPHome binaries'
+name: ESPHome Builder
+description: Builds ESPHome binaries
 inputs:
   yaml_file:
-    description: 'YAML file to use'
+    description: YAML file to use
     required: true
     type: string
   output_dir:
-    description: 'Directory to output files'
+    description: Directory to output files
     required: false
     type: string
-    default: 'output'
+    default: output
 runs:
-  using: 'composite'
+  using: docker
+  image: Dockerfile
   steps:
     # - uses: actions/cache@v2
     #   with:
@@ -21,11 +22,7 @@ runs:
     # - run: mkdir -p /cache
     #   shell: bash
     - name: Compile binary
-      uses: 'docker://ghcr.io/esphome/esphome:latest'
-      with:
-        args: compile ${{ inputs.yaml_file }}
+      run: esphome compile ${{ inputs.yaml_file }}
+
     - name: Gather binaries and generate manifest
-      uses: 'docker://ghcr.io/esphome/esphome:latest'
-      with:
-        entrypoint: ${{ env.GITHUB_ACTION_PATH }}/get_flash_images.py
-        args: ${{ inputs.yaml_file }} ${{ inputs.output_dir }}
+      run: /usr/local/bin/get_flash_images.py ${{ inputs.yaml_file }} ${{ inputs.output_dir }}
