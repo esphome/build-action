@@ -27,5 +27,5 @@ runs:
     - name: Gather binaries and generate manifest
       uses: 'docker://ghcr.io/esphome/esphome:latest'
       with:
-        entrypoint: get_flash_images.py
+        entrypoint: ${{ env.GITHUB_ACTION_PATH }}/get_flash_images.py
         args: ${{ inputs.yaml_file }} ${{ inputs.output_dir }}
