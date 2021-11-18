@@ -25,5 +25,7 @@ runs:
       with:
         args: compile ${{ inputs.yaml_file }}
     - name: Gather binaries and generate manifest
-      shell: bash
-      run: python get_flash_images.py ${{ inputs.yaml_file }} ${{ inputs.output_dir }}
+      uses: 'docker://ghcr.io/esphome/esphome:latest'
+      with:
+        entrypoint: get_flash_images.py
+        args: ${{ inputs.yaml_file }} ${{ inputs.output_dir }}
