@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         file:
-          - esp32.yml
+          # - esp32.yml
           - esp8266.yml
     steps:
       - uses: actions/checkout@v2
