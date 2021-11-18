@@ -5,26 +5,11 @@ inputs:
     description: YAML file to use
     required: true
     type: string
-  output_dir:
-    description: Directory to output files
-    required: false
-    type: string
-    default: output
+outputs:
+  name:
+    description: Name of device extracted from configuration
 runs:
   using: docker
   image: Dockerfile
   args:
     - ${{ inputs.yaml_file }}
-    - ${{ inputs.output_dir }}
-    # - uses: actions/cache@v2
-    #   with:
-    #     path: |
-    #       /cache
-    #     key: ${{ runner.os }}-${{ inputs.yaml_file }}
-    # - run: mkdir -p /cache
-    #   shell: bash
-    # - name: Compile binary
-    #   run: esphome compile ${{ inputs.yaml_file }}
-
-    # - name: Gather binaries and generate manifest
-    #   run: /usr/local/bin/get_flash_images.py

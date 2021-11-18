@@ -5,13 +5,13 @@ on:
 
 jobs:
   build:
-    name: Build ESPHome binaries
+    name: Build ESPHome binary for ${{ matrix.file }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         file:
-          # - esp32.yml
-          - esp8266.yml
+          # - example/esp32.yml
+          - example/esp8266.yml
     steps:
       - uses: actions/checkout@v2
       # - uses: esphome/build@latest
@@ -19,15 +19,28 @@ jobs:
         id: esphome-build
         with:
           yaml_file: ${{ matrix.file }}
+      - uses: actions/upload-artifact@master
+        with:
+          name: ${{ steps.esphome-build.outputs.name }}
+          path: ${{ steps.esphome-build.outputs.name }}
   deploy:
     name: Deploy new firmware to GitHub Pages
     runs-on: ubuntu-latest
     needs: [build]
     steps:
-      - run: sudo apt update && sudo apt install -y mustache
-      - run: mkdir -p output
-      - run: cat site-config.yaml templates/index.mustache | mustache > output.index.html
-      - run: |
-          jq -s '{"name": "ESPHome", "version": "", "home_assistant_domain": "esphome", "new_install_skip_erase": false, "builds":.}' */manifest.json > output/manifest.json
-      - run: ls -al output/
-      - run: cat output/manifest.json
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@master
+        with:
+          path: example
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0
+      - run: tree
+      # - run: gem install mustache
+      # - run: mkdir -p output
+      # - run: ls -al
+      # - run: cat site-config.yaml templates/index.mustache | mustache > output.index.html
+      # - run: |
+      #     jq -s '{"name": "ESPHome", "version": "", "home_assistant_domain": "esphome", "new_install_skip_erase": false, "builds":.}' */manifest.json > output/manifest.json
+      # - run: ls -al output/
+      # - run: cat output/manifest.json
