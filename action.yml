@@ -5,16 +5,14 @@ inputs:
     description: 'YAML file to use'
     required: true
     type: string
+  output_dir:
+    description: 'Directory to output files'
+    required: false
+    type: string
+    default: 'output'
 runs:
   using: 'composite'
   steps:
-    - name: Get name
-      id: name
-      shell: bash
-      run: |
-        filename=$(basename -- "${{ inputs.yaml_file }}")
-        filename="${filename%.*}"
-        echo ::set-output name=name::$filename
     - uses: actions/cache@v2
       with:
         path: |
@@ -28,4 +26,4 @@ runs:
         args: compile ${{ inputs.yaml_file }}
     - name: Gather binaries and generate manifest
       shell: bash
-      run: python get_flash_images.py ${{ inputs.yaml_file }}
+      run: python get_flash_images.py ${{ inputs.yaml_file }} ${{ inputs.output_dir }}

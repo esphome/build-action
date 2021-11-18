@@ -1,5 +1,5 @@
 esphome:
-  name: esphome-build-action-example
+  name: esphome-build-action-esp8266
   platform: ESP8266
   board: d1_mini
 

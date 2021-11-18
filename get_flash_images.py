@@ -6,11 +6,13 @@ import shutil
 from pathlib import Path
 import re
 
-if len(sys.argv) != 2:
-    print("Usage: flash_images.py <image_file>")
+if len(sys.argv) != 3:
+    print("Usage: flash_images.py <image_file> <output_dir>")
     sys.exit(1)
 
 filename = Path(sys.argv[1])
+output_dir = Path(sys.argv[2])
+
 file_base = Path(filename.stem)
 
 try:
@@ -23,9 +25,9 @@ data = json.loads(idedata.decode("utf-8"))
 elf = Path(data["prog_path"])
 bin = elf.with_suffix(".bin")
 
-file_base.mkdir(parents=True, exist_ok=True)
+(output_dir / file_base).mkdir(parents=True, exist_ok=True)
 
-shutil.copyfile(bin, f"{file_base}/firmware.bin")
+shutil.copyfile(bin, output_dir / file_base / "firmware.bin")
 
 extras = data["extra"]["flash_images"]
 
@@ -56,7 +58,7 @@ manifest = {
 for extra in extras:
     extra_bin = extra["path"]
     new_path = file_base / Path(extra_bin).name
-    shutil.copyfile(extra_bin, new_path)
+    shutil.copyfile(extra_bin, output_dir / new_path)
     manifest["parts"].append(
         {
             "path": str(new_path),
@@ -64,5 +66,5 @@ for extra in extras:
         }
     )
 
-with open(f"{file_base}/manifest.json", "w") as f:
+with open(output_dir / file_base / "manifest.json", "w") as f:
     json.dump(manifest, f, indent=2)

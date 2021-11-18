@@ -29,3 +29,5 @@ jobs:
       - run: cat site-config.yaml templates/index.mustache | mustache > output.index.html
       - run: |
           jq -s '{"name": "ESPHome", "version": "", "home_assistant_domain": "esphome", "new_install_skip_erase": false, "builds":.}' */manifest.json > output/manifest.json
+      - run: ls -al output/
+      - run: cat output/manifest.json
