@@ -13,7 +13,9 @@ inputs:
 runs:
   using: docker
   image: Dockerfile
-  steps:
+  args:
+    - ${{ inputs.yaml_file }}
+    - ${{ inputs.output_dir }}
     # - uses: actions/cache@v2
     #   with:
     #     path: |
@@ -21,8 +23,8 @@ runs:
     #     key: ${{ runner.os }}-${{ inputs.yaml_file }}
     # - run: mkdir -p /cache
     #   shell: bash
-    - name: Compile binary
-      run: esphome compile ${{ inputs.yaml_file }}
+    # - name: Compile binary
+    #   run: esphome compile ${{ inputs.yaml_file }}
 
-    - name: Gather binaries and generate manifest
-      run: /usr/local/bin/get_flash_images.py ${{ inputs.yaml_file }} ${{ inputs.output_dir }}
+    # - name: Gather binaries and generate manifest
+    #   run: /usr/local/bin/get_flash_images.py
