@@ -13,13 +13,13 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - uses: actions/cache@v2
-      with:
-        path: |
-          /cache
-        key: ${{ runner.os }}-${{ inputs.yaml_file }}
-    - run: mkdir -p /cache
-      shell: bash
+    # - uses: actions/cache@v2
+    #   with:
+    #     path: |
+    #       /cache
+    #     key: ${{ runner.os }}-${{ inputs.yaml_file }}
+    # - run: mkdir -p /cache
+    #   shell: bash
     - name: Compile binary
       uses: 'docker://ghcr.io/esphome/esphome:latest'
       with:
