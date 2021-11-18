@@ -19,7 +19,7 @@ except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
 
-config = yaml.load(config.decode("utf-8"))
+config = yaml.load(config.decode("utf-8"), Loader=yaml.Loader)
 
 name = config["esphome"]["name"]
 
