@@ -11,5 +11,5 @@ jobs:
     with:
       files: esp32.yml,esp8266.yml
       root_dir: example
-      secrets:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
