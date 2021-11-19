@@ -7,7 +7,7 @@ on:
 
 jobs:
   workflows:
-    uses: esphome/build-action/.github/workflows/build.yaml@main
+    uses: ./.github/workflows/build.yaml@main
     with:
       files: esp32.yml,esp8266.yml
       root_dir: example
