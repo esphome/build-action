@@ -23,7 +23,7 @@ try:
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
-version = version.split(" ")[1].strip()
+version = version.decode("utf-8").split(" ")[1]
 
 print(f"::set-output name=esphome-version::{version}")
 
