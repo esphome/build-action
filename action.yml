@@ -1,15 +1,22 @@
 name: ESPHome Builder
 description: Builds ESPHome binaries
+
 inputs:
   yaml_file:
     description: YAML file to use
     required: true
     type: string
+
 outputs:
   name:
     description: Name of device extracted from configuration
+
 runs:
   using: docker
   image: Dockerfile
   args:
     - ${{ inputs.yaml_file }}
+
+branding:
+  icon: 'archive'
+  color: 'white'
