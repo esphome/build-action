@@ -62,8 +62,14 @@ jobs:
 
       - run: tree output
 
-      # - uses: ruby/setup-ruby@v1
-      #   with:
-      #     ruby-version: 3.0
-      # - run: gem install mustache
-      # - run: cat ${{ inputs.root_dir }}/site-config.yaml ${{ inputs.root_dir }}templates/index.mustache | mustache > output/index.html
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0
+      - run: gem install mustache
+      - run: cat ${{ inputs.root_dir }}/site-config.yaml ${{ inputs.root_dir }}/templates/index.mustache | mustache > output/index.html
+
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@4.1.6
+        with:
+          branch: gh-pages
+          folder: output
