@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+
 import subprocess
 import sys
 import json
@@ -8,10 +9,23 @@ import re
 import yaml
 
 if len(sys.argv) != 2:
-    print("Usage: flash_images.py <image_file>")
+    print("Usage: entrypoint.py <image_file>")
     sys.exit(1)
 
 filename = Path(sys.argv[1])
+
+rc = subprocess.call(["esphome", "compile", filename])
+if rc != 0:
+    sys.exit(rc)
+
+try:
+    version = subprocess.check_output(["esphome", "version"])
+except subprocess.CalledProcessError as e:
+    sys.exit(e.returncode)
+
+version = version.split(" ")[1].strip()
+
+print(f"::set-output name=esphome-version::{version}")
 
 try:
     config = subprocess.check_output(["esphome", "config", filename])

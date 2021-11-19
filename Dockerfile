@@ -1,5 +1,5 @@
 FROM ghcr.io/esphome/esphome:latest
 
-COPY rootfs /
+COPY entrypoint.py /entrypoint.py
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.py"]
