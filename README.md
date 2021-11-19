@@ -6,17 +6,12 @@
 
 **Required**. The YAML filename to be compiled.
 
-### `esphome_version`
-
-**Optional**. The version of ESPHome to use. Defaults to the latest stable version.
-
 ## Example usage
 
 ```yaml
 
-uses: esphome/build
+uses: esphome/build-action@v1
 with:
   yaml_file: my_configuration.yaml
-  esphome_version: "2021.10.3"
 
 ```
