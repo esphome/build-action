@@ -38,7 +38,7 @@ jobs:
       esphome-version: ${{ steps.esphome-build.outputs.esphome-version }}
     steps:
       - uses: actions/checkout@v2
-      - uses: ./
+      - uses: esphome/build@main
         id: esphome-build
         with:
           yaml_file: ${{ inputs.root_dir }}/${{ matrix.file }}
