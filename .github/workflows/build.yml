@@ -60,15 +60,7 @@ jobs:
         run: |
           jq -s '{"name": "ESPHome", "version": "${{ needs.build.outputs.esphome-version }}", "home_assistant_domain": "esphome", "new_install_skip_erase": false, "builds":.}' output/*/manifest.json > output/manifest.json
 
-      - run: tree output
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 3.0
-      - run: gem install mustache
-      - run: |
-          mustache ${{ inputs.root_dir }}/site-config.yml ${{ inputs.root_dir }}/templates/index.mustache > output/index.md
-          mustache ${{ inputs.root_dir }}/site-config.yml ${{ inputs.root_dir }}/templates/_config.mustache > output/_config.yml
+      - run: cp -R ${{ inputs.root_dir }}/static/* output
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@4.1.6
