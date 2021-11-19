@@ -41,7 +41,7 @@ jobs:
       - uses: ./
         id: esphome-build
         with:
-          yaml_file: ${{ matrix.file }}
+          yaml_file: ${{ inputs.root_dir }}/${{ matrix.file }}
       - uses: actions/upload-artifact@master
         with:
           name: ${{ steps.esphome-build.outputs.name }}
