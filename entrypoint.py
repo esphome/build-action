@@ -40,6 +40,14 @@ config = yaml.load(config.decode("utf-8"), Loader=yaml.FullLoader)
 
 name = config["esphome"]["name"]
 
+platform = ""
+if "esp32" in config:
+    platform = "esp32"
+elif "esp8266" in config:
+    platform = "esp8266"
+
+name += f"-{platform}"
+
 print(f"::set-output name=name::{name}")
 print("::endgroup::")
 
