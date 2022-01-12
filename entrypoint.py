@@ -8,6 +8,9 @@ from pathlib import Path
 import re
 import yaml
 
+GH_RUNNER_USER_UID = 1001
+GH_RUNNER_USER_GID = 121
+
 if len(sys.argv) != 2:
     print("Usage: entrypoint.py <image_file>")
     sys.exit(1)
@@ -67,8 +70,10 @@ print("::endgroup::")
 
 print("::group::Copy firmware file(s) to folder")
 file_base.mkdir(parents=True, exist_ok=True)
+shutil.chown(file_base, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 shutil.copyfile(bin, file_base / "firmware.bin")
+shutil.chown(file_base / "firmware.bin", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 extras = data["extra"]["flash_images"]
 
@@ -100,6 +105,8 @@ for extra in extras:
     extra_bin = extra["path"]
     new_path = file_base / Path(extra_bin).name
     shutil.copyfile(extra_bin, new_path)
+    shutil.chown(new_path, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
+
     print(f"Copied {new_path}")
     manifest["parts"].append(
         {
@@ -115,4 +122,7 @@ print(json.dumps(manifest, indent=2))
 
 with open(file_base / "manifest.json", "w") as f:
     json.dump(manifest, f, indent=2)
+
+shutil.chown(file_base / "manifest.json", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
+
 print("::endgroup::")
