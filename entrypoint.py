@@ -4,7 +4,6 @@ import subprocess
 import sys
 import json
 import shutil
-import os
 from pathlib import Path
 import re
 import yaml
