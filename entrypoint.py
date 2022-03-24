@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import os
 import subprocess
 import sys
 import json
@@ -70,10 +71,13 @@ print("::endgroup::")
 
 print("::group::Copy firmware file(s) to folder")
 file_base.mkdir(parents=True, exist_ok=True)
-shutil.chown(file_base, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
+
+if os.environ.get("GITHUB_JOB") is not None:
+    shutil.chown(file_base, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 shutil.copyfile(bin, file_base / f"{name}.bin")
-shutil.chown(file_base / "firmware.bin", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
+if os.environ.get("GITHUB_JOB") is not None:
+    shutil.chown(file_base / f"{name}.bin", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 chip_family = None
 define: str
@@ -104,6 +108,7 @@ print(json.dumps(manifest, indent=2))
 with open(file_base / "manifest.json", "w") as f:
     json.dump(manifest, f, indent=2)
 
-shutil.chown(file_base / "manifest.json", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
+if os.environ.get("GITHUB_JOB") is not None:
+    shutil.chown(file_base / "manifest.json", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 print("::endgroup::")
