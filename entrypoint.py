@@ -65,20 +65,17 @@ except subprocess.CalledProcessError as e:
 data = json.loads(idedata.decode("utf-8"))
 
 elf = Path(data["prog_path"])
-bin = elf.with_suffix(".bin")
+bin = elf.with_name("firmware-factory.bin")
 print("::endgroup::")
 
 print("::group::Copy firmware file(s) to folder")
 file_base.mkdir(parents=True, exist_ok=True)
 shutil.chown(file_base, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
-shutil.copyfile(bin, file_base / "firmware.bin")
+shutil.copyfile(bin, file_base / f"{name}.bin")
 shutil.chown(file_base / "firmware.bin", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
-extras = data["extra"]["flash_images"]
-
 chip_family = None
-esp32 = False
 define: str
 for define in data["defines"]:
     if define == "USE_ESP8266":
@@ -86,34 +83,18 @@ for define in data["defines"]:
         break
     elif m := re.match(r"USE_ESP32_VARIANT_(\w+)", define):
         chip_family = m.group(1)
-        esp32 = True
         break
-
-firmware_offset = 0x10000 if esp32 else 0x0
 
 manifest = {
     "chipFamily": chip_family,
     "parts": [
         {
-            "path": str(file_base / "firmware.bin"),
-            "offset": firmware_offset,
+            "path": str(file_base / f"{name}.bin"),
+            "offset": 0x00,
         }
     ],
 }
 
-for extra in extras:
-    extra_bin = extra["path"]
-    new_path = file_base / Path(extra_bin).name
-    shutil.copyfile(extra_bin, new_path)
-    shutil.chown(new_path, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
-
-    print(f"Copied {new_path}")
-    manifest["parts"].append(
-        {
-            "path": str(new_path),
-            "offset": int(extra["offset"], 16),
-        }
-    )
 print("::endgroup::")
 
 print("::group::Write manifest.json file")
