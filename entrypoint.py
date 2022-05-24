@@ -12,6 +12,13 @@ import yaml
 GH_RUNNER_USER_UID = 1001
 GH_RUNNER_USER_GID = 121
 
+ESP32_CHIP_FAMILIES = {
+    "ESP32": "ESP32",
+    "ESP32S2": "ESP32-S2",
+    "ESP32S3": "ESP32-S3",
+    "ESP32C3": "ESP32-C3",
+}
+
 if len(sys.argv) != 2:
     print("Usage: entrypoint.py <image_file>")
     sys.exit(1)
@@ -87,6 +94,10 @@ for define in data["defines"]:
         break
     elif m := re.match(r"USE_ESP32_VARIANT_(\w+)", define):
         chip_family = m.group(1)
+        if chip_family not in ESP32_CHIP_FAMILIES:
+            raise Exception(f"Unsupported chip family: {chip_family}")
+
+        chip_family = ESP32_CHIP_FAMILIES[chip_family]
         break
 
 manifest = {
