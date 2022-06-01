@@ -19,6 +19,7 @@ outputs:
 runs:
   using: composite
   steps:
+    - run: ls -al
     - name: Build ESPHome image
       shell: bash
       run: |-
