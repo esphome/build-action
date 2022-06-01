@@ -19,14 +19,13 @@ outputs:
 runs:
   using: composite
   steps:
-    - run: ls -al
     - name: Build ESPHome image
       shell: bash
       run: |-
         docker build \
         -t esphome:${{ inputs.version }} \
         --build-arg VERSION=${{ inputs.version }} \
-        .
+        ${{ github.action_path }}
     - name: Run container
       shell: bash
       run: |-
