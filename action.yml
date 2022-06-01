@@ -6,16 +6,37 @@ inputs:
     description: YAML file to use
     required: true
     type: string
+  version:
+    description: Version of ESPHome to build
+    required: false
+    type: string
+    default: latest
 
 outputs:
   name:
     description: Name of device extracted from configuration
 
 runs:
-  using: docker
-  image: Dockerfile
-  args:
-    - ${{ inputs.yaml_file }}
+  using: composite
+  steps:
+    - name: Build ESPHome image
+      shell: bash
+      run: |-
+        docker build \
+        -t esphome:${{ inputs.version }} \
+        --build-arg VERSION=${{ inputs.version }} \
+        .
+    - name: Run container
+      shell: bash
+      run: |-
+        docker run --rm \
+        --workdir /github/workspace -v "$(pwd)":"/github/workspace" \
+        -e INPUT_YAML_FILE -e HOME -e GITHUB_JOB -e GITHUB_REF \
+        -e GITHUB_SHA -e GITHUB_REPOSITORY -e GITHUB_REPOSITORY_OWNER \
+        -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_ACTOR \
+        -e GITHUB_ACTIONS=true -e CI=true \
+        esphome:${{ inputs.version }} \
+        ${{ inputs.yaml_file }}
 
 branding:
   icon: 'archive'
