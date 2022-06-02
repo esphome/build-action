@@ -26,7 +26,7 @@ if len(sys.argv) != 2:
 filename = Path(sys.argv[1])
 
 print("::group::Compile firmware")
-rc = subprocess.run(["esphome", "compile", filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+rc = subprocess.run(["esphome", "compile", filename], stdout=sys.stdout, stderr=sys.stderr)
 if rc.returncode != 0:
     sys.exit(rc)
 print("::endgroup::")
@@ -44,7 +44,7 @@ print("::endgroup::")
 
 print("::group::Get config")
 try:
-    config = subprocess.check_output(["esphome", "config", filename], stderr=subprocess.STDOUT)
+    config = subprocess.check_output(["esphome", "config", filename], stderr=sys.stderr)
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
@@ -68,11 +68,12 @@ file_base = Path(name)
 
 print("::group::Get IDEData")
 try:
-    idedata = subprocess.check_output(["esphome", "idedata", filename], stderr=subprocess.STDOUT)
+    idedata = subprocess.check_output(["esphome", "idedata", filename], stderr=sys.stderr)
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
 data = json.loads(idedata.decode("utf-8"))
+print(json.dumps(data, indent=2))
 
 elf = Path(data["prog_path"])
 bin = elf.with_name("firmware-factory.bin")
@@ -87,6 +88,10 @@ if os.environ.get("GITHUB_JOB") is not None:
 shutil.copyfile(bin, file_base / f"{name}.bin")
 if os.environ.get("GITHUB_JOB") is not None:
     shutil.chown(file_base / f"{name}.bin", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
+
+print("::endgroup::")
+
+print("::group::Write manifest.json file")
 
 chip_family = None
 define: str
@@ -112,9 +117,6 @@ manifest = {
     ],
 }
 
-print("::endgroup::")
-
-print("::group::Write manifest.json file")
 print(f"Writing manifest file:")
 print(json.dumps(manifest, indent=2))
 
