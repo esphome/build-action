@@ -48,8 +48,11 @@ try:
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
+config = config.decode("utf-8")
+print(config)
+
 yaml.add_multi_constructor("", lambda _, t, n: t + " " + n.value)
-config = yaml.load(config.decode("utf-8"), Loader=yaml.FullLoader)
+config = yaml.load(config, Loader=yaml.FullLoader)
 
 name = config["esphome"]["name"]
 
