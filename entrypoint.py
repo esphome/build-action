@@ -26,8 +26,8 @@ if len(sys.argv) != 2:
 filename = Path(sys.argv[1])
 
 print("::group::Compile firmware")
-rc = subprocess.call(["esphome", "compile", filename])
-if rc != 0:
+rc = subprocess.run(["esphome", "compile", filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+if rc.returncode != 0:
     sys.exit(rc)
 print("::endgroup::")
 
@@ -36,13 +36,15 @@ try:
     version = subprocess.check_output(["esphome", "version"])
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
-version = version.decode("utf-8").split(" ")[1]
+version = version.decode("utf-8")
+print(version)
+version = version.split(" ")[1]
 print(f"::set-output name=esphome-version::{version}")
 print("::endgroup::")
 
 print("::group::Get config")
 try:
-    config = subprocess.check_output(["esphome", "config", filename])
+    config = subprocess.check_output(["esphome", "config", filename], stderr=subprocess.STDOUT)
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
@@ -66,7 +68,7 @@ file_base = Path(name)
 
 print("::group::Get IDEData")
 try:
-    idedata = subprocess.check_output(["esphome", "idedata", filename])
+    idedata = subprocess.check_output(["esphome", "idedata", filename], stderr=subprocess.STDOUT)
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
