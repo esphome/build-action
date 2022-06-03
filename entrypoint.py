@@ -26,9 +26,11 @@ if len(sys.argv) != 2:
 filename = Path(sys.argv[1])
 
 print("::group::Compile firmware")
-rc = subprocess.run(["esphome", "compile", filename], stdout=sys.stdout, stderr=sys.stderr)
+rc = subprocess.run(["esphome", "compile", filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 if rc.returncode != 0:
     sys.exit(rc)
+
+print(rc.stdout.decode("utf-8"))
 print("::endgroup::")
 
 print("::group::Get ESPHome version")
