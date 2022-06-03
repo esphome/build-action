@@ -26,9 +26,11 @@ if len(sys.argv) != 2:
 filename = Path(sys.argv[1])
 
 print("::group::Compile firmware")
-rc = subprocess.call(["esphome", "compile", filename])
-if rc != 0:
+rc = subprocess.run(["esphome", "compile", filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+if rc.returncode != 0:
     sys.exit(rc)
+
+print(rc.stdout.decode("utf-8"))
 print("::endgroup::")
 
 print("::group::Get ESPHome version")
@@ -36,18 +38,23 @@ try:
     version = subprocess.check_output(["esphome", "version"])
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
-version = version.decode("utf-8").split(" ")[1]
+version = version.decode("utf-8")
+print(version)
+version = version.split(" ")[1]
 print(f"::set-output name=esphome-version::{version}")
 print("::endgroup::")
 
 print("::group::Get config")
 try:
-    config = subprocess.check_output(["esphome", "config", filename])
+    config = subprocess.check_output(["esphome", "config", filename], stderr=sys.stderr)
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
+config = config.decode("utf-8")
+print(config)
+
 yaml.add_multi_constructor("", lambda _, t, n: t + " " + n.value)
-config = yaml.load(config.decode("utf-8"), Loader=yaml.FullLoader)
+config = yaml.load(config, Loader=yaml.FullLoader)
 
 name = config["esphome"]["name"]
 
@@ -66,11 +73,12 @@ file_base = Path(name)
 
 print("::group::Get IDEData")
 try:
-    idedata = subprocess.check_output(["esphome", "idedata", filename])
+    idedata = subprocess.check_output(["esphome", "idedata", filename], stderr=sys.stderr)
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
 data = json.loads(idedata.decode("utf-8"))
+print(json.dumps(data, indent=2))
 
 elf = Path(data["prog_path"])
 bin = elf.with_name("firmware-factory.bin")
@@ -85,6 +93,10 @@ if os.environ.get("GITHUB_JOB") is not None:
 shutil.copyfile(bin, file_base / f"{name}.bin")
 if os.environ.get("GITHUB_JOB") is not None:
     shutil.chown(file_base / f"{name}.bin", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
+
+print("::endgroup::")
+
+print("::group::Write manifest.json file")
 
 chip_family = None
 define: str
@@ -110,9 +122,6 @@ manifest = {
     ],
 }
 
-print("::endgroup::")
-
-print("::group::Write manifest.json file")
 print(f"Writing manifest file:")
 print(json.dumps(manifest, indent=2))
 
