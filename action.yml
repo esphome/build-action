@@ -15,6 +15,10 @@ inputs:
 outputs:
   name:
     description: Name of device extracted from configuration
+    value: ${{ steps.build-step.outputs.name }}
+  version:
+    description: ESPHome version
+    value: ${{ steps.build-step.outputs.esphome-version }}
 
 runs:
   using: composite
@@ -28,6 +32,7 @@ runs:
         ${{ github.action_path }}
     - name: Run container
       shell: bash
+      id: build-step
       run: |-
         docker run --rm \
         --workdir /github/workspace -v "$(pwd)":"/github/workspace" \
