@@ -41,7 +41,8 @@ except subprocess.CalledProcessError as e:
 version = version.decode("utf-8")
 print(version)
 version = version.split(" ")[1]
-print(f"::set-output name=esphome-version::{version}")
+with open(os.environ["GITHUB_OUTPUT"], "a") as github_output:
+    print(f"esphome-version={version}", file=github_output)
 print("::endgroup::")
 
 print("::group::Get config")
@@ -66,7 +67,8 @@ elif "esp8266" in config:
 
 name += f"-{platform}"
 
-print(f"::set-output name=name::{name}")
+with open(os.environ["GITHUB_OUTPUT"], "a") as github_output:
+    print(f"name={name}", file=github_output)
 print("::endgroup::")
 
 file_base = Path(name)
