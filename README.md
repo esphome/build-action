@@ -21,16 +21,18 @@ This action is used by the [ESPHome publish workflow](https://github.com/esphome
 
 ## Inputs
 
-Name | Default | Description  
------|---------|------------
-`yaml_file` | _None_   | The YAML file to be compiled.
-`version`   | `latest` | The ESPHome version to build using.
+Name        | Default       | Description  
+------------|---------------|------------
+`yaml_file` | _None_        | The YAML file to be compiled.
+`version`   | `latest`      | The ESPHome version to build using.
+`platform`  | `linux/amd64` | The docker platform to use during build. (linux/amd64, linux/arm64, linux/arm/v7)
 
 ## Outputs
 
-Name   | Description  
--------|------------
-`name` | The name of the device in yaml with the platform (eg. ESP32 or ESP8266) appended.
+Name      | Description  
+----------|------------
+`name`    | The name of the device in yaml with the platform (eg. ESP32 or ESP8266) appended.
+`version` | The ESPHome version used during build.
 
 ## Output files
 

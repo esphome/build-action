@@ -5,12 +5,14 @@ inputs:
   yaml_file:
     description: YAML file to use
     required: true
-    type: string
   version:
     description: Version of ESPHome to build
     required: false
-    type: string
     default: latest
+  platform:
+    description: Platform (OS/Arch) to use
+    required: false
+    default: linux/amd64
 
 outputs:
   name:
@@ -23,18 +25,25 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      with:
+        platforms: ${{ inputs.platform }}
     - name: Build ESPHome image
-      shell: bash
-      run: |-
-        docker build \
-        -t esphome:${{ inputs.version }} \
-        --build-arg VERSION=${{ inputs.version }} \
-        ${{ github.action_path }}
+      uses: docker/build-push-action@v3
+      with:
+        context: ${{ github.action_path }}
+        load: true
+        tags: esphome:${{ inputs.version }}
+        build-args: VERSION=${{ inputs.version }}
+        platforms: ${{ inputs.platform }}
     - name: Run container
       shell: bash
       id: build-step
       run: |-
-        docker run --rm \
+        docker run --rm --platform ${{ inputs.platform }} \
         --workdir /github/workspace -v "$(pwd)":"/github/workspace" \
         -e INPUT_YAML_FILE -e HOME -e GITHUB_JOB -e GITHUB_REF \
         -e GITHUB_SHA -e GITHUB_REPOSITORY -e GITHUB_REPOSITORY_OWNER \
