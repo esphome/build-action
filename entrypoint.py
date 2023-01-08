@@ -63,6 +63,8 @@ if "esp32" in config:
     platform = "esp32"
 elif "esp8266" in config:
     platform = "esp8266"
+elif "rp2040" in config:
+    platform = "rp2040"
 
 name += f"-{platform}"
 
@@ -81,7 +83,12 @@ data = json.loads(idedata.decode("utf-8"))
 print(json.dumps(data, indent=2))
 
 elf = Path(data["prog_path"])
-bin = elf.with_name("firmware-factory.bin")
+if platform == "rp2040":
+    source_bin = elf.with_name("firmware.uf2")
+    dest_bin = file_base / f"{name}.uf2"
+else:
+    source_bin = elf.with_name("firmware-factory.bin")
+    dest_bin = file_base / f"{name}.bin"
 print("::endgroup::")
 
 print("::group::Copy firmware file(s) to folder")
@@ -90,11 +97,14 @@ file_base.mkdir(parents=True, exist_ok=True)
 if os.environ.get("GITHUB_JOB") is not None:
     shutil.chown(file_base, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
-shutil.copyfile(bin, file_base / f"{name}.bin")
+shutil.copyfile(source_bin, dest_bin)
 if os.environ.get("GITHUB_JOB") is not None:
-    shutil.chown(file_base / f"{name}.bin", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
+    shutil.chown(dest_bin, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 print("::endgroup::")
+
+if platform == "rp2040":
+    sys.exit(0)
 
 print("::group::Write manifest.json file")
 
@@ -116,7 +126,7 @@ manifest = {
     "chipFamily": chip_family,
     "parts": [
         {
-            "path": str(file_base / f"{name}.bin"),
+            "path": str(dest_bin),
             "offset": 0x00,
         }
     ],
