@@ -43,11 +43,14 @@ runs:
       shell: bash
       id: build-step
       run: |-
-        docker run --rm --platform ${{ inputs.platform }} \
-        --workdir /github/workspace -v "$(pwd)":"/github/workspace" \
-        -e INPUT_YAML_FILE -e HOME -e GITHUB_JOB -e GITHUB_REF \
-        -e GITHUB_SHA -e GITHUB_REPOSITORY -e GITHUB_REPOSITORY_OWNER \
-        -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_ACTOR \
+        docker run --rm \
+        --platform ${{ inputs.platform }} \
+        --workdir /github/workspace \
+        -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
+        -e INPUT_YAML_FILE -e HOME \
+        -e GITHUB_JOB -e GITHUB_REF -e GITHUB_SHA -e GITHUB_REPOSITORY \
+        -e GITHUB_REPOSITORY_OWNER -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER \
+        -e GITHUB_ACTOR -e GITHUB_OUTPUT \
         -e GITHUB_ACTIONS=true -e CI=true \
         esphome:${{ inputs.version }} \
         ${{ inputs.yaml_file }}
