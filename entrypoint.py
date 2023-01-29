@@ -61,7 +61,7 @@ name = config["esphome"]["name"]
 
 platform = ""
 if "esp32" in config:
-    platform = "esp32"
+    platform = config["esp32"]["variant"].lower()
 elif "esp8266" in config:
     platform = "esp8266"
 elif "rp2040" in config:
