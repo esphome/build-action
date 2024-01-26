@@ -26,7 +26,9 @@ if len(sys.argv) != 2:
 filename = Path(sys.argv[1])
 
 print("::group::Compile firmware")
-rc = subprocess.run(["esphome", "compile", filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+rc = subprocess.run(
+    ["esphome", "compile", filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+)
 if rc.returncode != 0:
     sys.exit(rc)
 
@@ -57,7 +59,10 @@ print(config)
 yaml.add_multi_constructor("", lambda _, t, n: t + " " + n.value)
 config = yaml.load(config, Loader=yaml.FullLoader)
 
-name = config["esphome"]["name"]
+# The original action used config["esphome"]["name"] but we use
+# the same name per board so we can use the filename instead
+# to avoid conflicts.
+name = Path(filename).with_suffix("").name.replace("_", "-")
 
 platform = ""
 if "esp32" in config:
@@ -77,7 +82,9 @@ file_base = Path(name)
 
 print("::group::Get IDEData")
 try:
-    idedata = subprocess.check_output(["esphome", "idedata", filename], stderr=sys.stderr)
+    idedata = subprocess.check_output(
+        ["esphome", "idedata", filename], stderr=sys.stderr
+    )
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
