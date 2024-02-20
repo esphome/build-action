@@ -17,6 +17,7 @@ ESP32_CHIP_FAMILIES = {
     "ESP32S2": "ESP32-S2",
     "ESP32S3": "ESP32-S3",
     "ESP32C3": "ESP32-C3",
+    "ESP32C6": "ESP32-C6",
 }
 
 if len(sys.argv) != 2:
