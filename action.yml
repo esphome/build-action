@@ -13,6 +13,10 @@ inputs:
     description: Platform (OS/Arch) to use
     required: false
     default: linux/amd64
+  cache:
+    description: Cache build directory
+    required: false
+    default: false
 
 outputs:
   name:
@@ -39,6 +43,12 @@ runs:
         tags: esphome:${{ inputs.version }}
         build-args: VERSION=${{ inputs.version }}
         platforms: ${{ inputs.platform }}
+    - if: ${{ inputs.cache == 'true' }}
+      name: Cache build directory
+      uses: actions/cache@v4.0.0
+      with:
+        path: .esphome/build/
+        key: ${{ runner.os }}-esphome-${{ inputs.yaml_file }}-${{ inputs.version }}
     - name: Run container
       shell: bash
       id: build-step
@@ -56,5 +66,5 @@ runs:
         ${{ inputs.yaml_file }}
 
 branding:
-  icon: 'archive'
-  color: 'white'
+  icon: "archive"
+  color: "white"
