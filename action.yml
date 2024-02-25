@@ -45,6 +45,7 @@ runs:
         platforms: ${{ inputs.platform }}
     - if: ${{ inputs.cache == 'true' }}
       id: build-dir
+      shell: bash
       run: |
         build=$(dirname ${{ inputs.yaml_file }})/.esphome/build
         echo "build_dir=$build" >> $GITHUB_OUTPUT
