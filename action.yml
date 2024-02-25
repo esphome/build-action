@@ -44,10 +44,15 @@ runs:
         build-args: VERSION=${{ inputs.version }}
         platforms: ${{ inputs.platform }}
     - if: ${{ inputs.cache == 'true' }}
+      id: build-dir
+      run: |
+        build=$(dirname ${{ inputs.yaml_file }})/.esphome/build
+        echo "build_dir=$build" >> $GITHUB_OUTPUT
+    - if: ${{ inputs.cache == 'true' }}
       name: Cache build directory
       uses: actions/cache@v4.0.0
       with:
-        path: .esphome/build/
+        path: ${{ steps.build-dir.outputs.build_dir }}
         key: ${{ runner.os }}-esphome-${{ inputs.yaml_file }}-${{ inputs.version }}
     - name: Run container
       shell: bash
