@@ -63,6 +63,7 @@ runs:
         --platform ${{ inputs.platform }} \
         --workdir /github/workspace \
         -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
+        --user $(id -u):$(id -g) \
         -e INPUT_YAML_FILE -e HOME \
         -e GITHUB_JOB -e GITHUB_REF -e GITHUB_SHA -e GITHUB_REPOSITORY \
         -e GITHUB_REPOSITORY_OWNER -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER \
