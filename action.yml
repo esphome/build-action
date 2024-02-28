@@ -50,6 +50,12 @@ runs:
         data_dir=$(dirname ${{ inputs.yaml_file }})/.esphome
         echo "data_dir=$data_dir" >> $GITHUB_OUTPUT
     - if: ${{ inputs.cache == 'true' }}
+      name: Cache platformio directory
+      uses: actions/cache@v4.0.0
+      with:
+        path: /home/esphome/.platformio
+        key: ${{ runner.os }}-esphome-${{ inputs.yaml_file }}-${{ inputs.version }}-platformio
+    - if: ${{ inputs.cache == 'true' }}
       name: Cache build directory
       uses: actions/cache@v4.0.0
       with:
