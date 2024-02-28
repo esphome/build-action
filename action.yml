@@ -44,17 +44,25 @@ runs:
         build-args: VERSION=${{ inputs.version }}
         platforms: ${{ inputs.platform }}
     - if: ${{ inputs.cache == 'true' }}
-      id: build-dir
+      id: data-dir
       shell: bash
       run: |
-        build=$(dirname ${{ inputs.yaml_file }})/.esphome/build
-        echo "build_dir=$build" >> $GITHUB_OUTPUT
+        data_dir=$(dirname ${{ inputs.yaml_file }})/.esphome
+        echo "data_dir=$data_dir" >> $GITHUB_OUTPUT
     - if: ${{ inputs.cache == 'true' }}
       name: Cache build directory
       uses: actions/cache@v4.0.0
       with:
-        path: ${{ steps.build-dir.outputs.build_dir }}
-        key: ${{ runner.os }}-esphome-${{ inputs.yaml_file }}-${{ inputs.version }}
+        path: ${{ steps.data-dir.outputs.data_dir }}/build
+        key: ${{ runner.os }}-esphome-${{ inputs.yaml_file }}-${{ inputs.version }}-build
+        save-always: true
+    - if: ${{ inputs.cache == 'true' }}
+      name: Cache storage directory
+      uses: actions/cache@v4.0.0
+      with:
+        path: ${{ steps.data-dir.outputs.data_dir }}/storage
+        key: ${{ runner.os }}-esphome-${{ inputs.yaml_file }}-${{ inputs.version }}-storage
+        save-always: true
     - name: Run container
       shell: bash
       id: build-step
