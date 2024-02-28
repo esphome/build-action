@@ -9,8 +9,6 @@ from pathlib import Path
 import re
 import yaml
 
-GH_RUNNER_USER_UID = 1001
-GH_RUNNER_USER_GID = 121
 
 ESP32_CHIP_FAMILIES = {
     "ESP32": "ESP32",
@@ -103,12 +101,7 @@ print("::endgroup::")
 print("::group::Copy firmware file(s) to folder")
 file_base.mkdir(parents=True, exist_ok=True)
 
-if os.environ.get("GITHUB_JOB") is not None:
-    shutil.chown(file_base, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
-
 shutil.copyfile(source_bin, dest_bin)
-if os.environ.get("GITHUB_JOB") is not None:
-    shutil.chown(dest_bin, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 print("::endgroup::")
 
@@ -146,9 +139,5 @@ print(json.dumps(manifest, indent=2))
 
 with open(file_base / "manifest.json", "w", encoding="utf-8") as f:
     json.dump(manifest, f, indent=2)
-
-if os.environ.get("GITHUB_JOB") is not None:
-    shutil.chown(file_base / "manifest.json", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
-    shutil.chown(file_base / "manifest.json", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 print("::endgroup::")
