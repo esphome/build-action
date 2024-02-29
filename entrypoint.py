@@ -9,8 +9,6 @@ from pathlib import Path
 import re
 import yaml
 
-GH_RUNNER_USER_UID = 1001
-GH_RUNNER_USER_GID = 121
 
 ESP32_CHIP_FAMILIES = {
     "ESP32": "ESP32",
@@ -27,11 +25,15 @@ if len(sys.argv) != 2:
 filename = Path(sys.argv[1])
 
 print("::group::Compile firmware")
-rc = subprocess.run(["esphome", "compile", filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+rc = subprocess.run(
+    ["esphome", "compile", filename],
+    stdout=sys.stdout,
+    stderr=sys.stderr,
+    check=False,
+)
 if rc.returncode != 0:
     sys.exit(rc)
 
-print(rc.stdout.decode("utf-8"))
 print("::endgroup::")
 
 print("::group::Get ESPHome version")
@@ -42,7 +44,7 @@ except subprocess.CalledProcessError as e:
 version = version.decode("utf-8")
 print(version)
 version = version.split(" ")[1]
-with open(os.environ["GITHUB_OUTPUT"], "a") as github_output:
+with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as github_output:
     print(f"esphome-version={version}", file=github_output)
 print("::endgroup::")
 
@@ -70,7 +72,7 @@ elif "rp2040" in config:
 
 name += f"-{platform}"
 
-with open(os.environ["GITHUB_OUTPUT"], "a") as github_output:
+with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as github_output:
     print(f"name={name}", file=github_output)
 print("::endgroup::")
 
@@ -78,7 +80,9 @@ file_base = Path(name)
 
 print("::group::Get IDEData")
 try:
-    idedata = subprocess.check_output(["esphome", "idedata", filename], stderr=sys.stderr)
+    idedata = subprocess.check_output(
+        ["esphome", "idedata", filename], stderr=sys.stderr
+    )
 except subprocess.CalledProcessError as e:
     sys.exit(e.returncode)
 
@@ -97,12 +101,7 @@ print("::endgroup::")
 print("::group::Copy firmware file(s) to folder")
 file_base.mkdir(parents=True, exist_ok=True)
 
-if os.environ.get("GITHUB_JOB") is not None:
-    shutil.chown(file_base, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
-
 shutil.copyfile(source_bin, dest_bin)
-if os.environ.get("GITHUB_JOB") is not None:
-    shutil.chown(dest_bin, GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 print("::endgroup::")
 
@@ -117,7 +116,7 @@ for define in data["defines"]:
     if define == "USE_ESP8266":
         chip_family = "ESP8266"
         break
-    elif m := re.match(r"USE_ESP32_VARIANT_(\w+)", define):
+    if m := re.match(r"USE_ESP32_VARIANT_(\w+)", define):
         chip_family = m.group(1)
         if chip_family not in ESP32_CHIP_FAMILIES:
             raise Exception(f"Unsupported chip family: {chip_family}")
@@ -135,13 +134,10 @@ manifest = {
     ],
 }
 
-print(f"Writing manifest file:")
+print("Writing manifest file:")
 print(json.dumps(manifest, indent=2))
 
-with open(file_base / "manifest.json", "w") as f:
+with open(file_base / "manifest.json", "w", encoding="utf-8") as f:
     json.dump(manifest, f, indent=2)
-
-if os.environ.get("GITHUB_JOB") is not None:
-    shutil.chown(file_base / "manifest.json", GH_RUNNER_USER_UID, GH_RUNNER_USER_GID)
 
 print("::endgroup::")
