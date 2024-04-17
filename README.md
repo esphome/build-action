@@ -26,6 +26,7 @@ Name        | Default       | Description
 `yaml_file` | _None_        | The YAML file to be compiled.
 `version`   | `latest`      | The ESPHome version to build using.
 `platform`  | `linux/amd64` | The docker platform to use during build. (linux/amd64, linux/arm64, linux/arm/v7)
+`cache`     | `false`       | Whether to cache the build folder.
 
 ## Outputs
 
