@@ -190,7 +190,6 @@ def generate_manifest(
         "ota": {
             "path": str(ota_bin),
             "md5": ota_md5,
-            "blah": "blah",
         },
     }
 
