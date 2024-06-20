@@ -17,14 +17,25 @@ inputs:
     description: Cache build directory
     required: false
     default: false
+  release_summary:
+    description: Release summary
+    required: false
+    default: ""
+  release_url:
+    description: Release URL
+    required: false
+    default: ""
 
 outputs:
   name:
-    description: Name of device extracted from configuration
+    description: Name of device extracted from configuration with the platform appended
     value: ${{ steps.build-step.outputs.name }}
   version:
     description: ESPHome version
     value: ${{ steps.build-step.outputs.esphome-version }}
+  original_name:
+    description: Original name of device extracted from configuration
+    value: ${{ steps.build-step.outputs.original_name }}
 
 runs:
   using: composite
@@ -79,6 +90,7 @@ runs:
         -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
         --user $(id -u):$(id -g) \
         -e INPUT_YAML_FILE -e HOME \
+        -e INPUT_RELEASE_SUMMARY -e INPUT_RELEASE_URL \
         -e GITHUB_JOB -e GITHUB_REF -e GITHUB_SHA -e GITHUB_REPOSITORY \
         -e GITHUB_REPOSITORY_OWNER -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER \
         -e GITHUB_ACTOR -e GITHUB_OUTPUT \
