@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 import re
 import yaml
+import hashlib
 
 
 ESP32_CHIP_FAMILIES = {
@@ -62,6 +63,9 @@ config = yaml.load(config, Loader=yaml.FullLoader)
 
 name = config["esphome"]["name"]
 
+with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as github_output:
+    print(f"original_name={name}", file=github_output)
+
 platform = ""
 if "esp32" in config:
     platform = config["esp32"]["variant"].lower()
@@ -91,30 +95,39 @@ print(json.dumps(data, indent=2))
 
 elf = Path(data["prog_path"])
 if platform == "rp2040":
-    source_bin = elf.with_name("firmware.uf2")
-    dest_bin = file_base / f"{name}.uf2"
+    source_factory_bin = elf.with_name("firmware.uf2")
+    dest_factory_bin = file_base / f"{name}.uf2"
 else:
-    source_bin = elf.with_name("firmware.factory.bin")
-    dest_bin = file_base / f"{name}.bin"
+    source_factory_bin = elf.with_name("firmware.factory.bin")
+    dest_factory_bin = file_base / f"{name}.factory.bin"
+
+source_ota_bin = elf.with_name("firmware.ota.bin")
+dest_ota_bin = file_base / f"{name}.ota.bin"
+
 print("::endgroup::")
 
 print("::group::Copy firmware file(s) to folder")
 file_base.mkdir(parents=True, exist_ok=True)
 
-shutil.copyfile(source_bin, dest_bin)
+shutil.copyfile(source_factory_bin, dest_factory_bin)
+shutil.copyfile(source_ota_bin, dest_ota_bin)
 
 print("::endgroup::")
 
-if platform == "rp2040":
-    sys.exit(0)
 
 print("::group::Write manifest.json file")
 
+
 chip_family = None
 define: str
+has_factory_part = False
 for define in data["defines"]:
     if define == "USE_ESP8266":
         chip_family = "ESP8266"
+        has_factory_part = True
+        break
+    if define == "USE_RP2040":
+        chip_family = "RP2040"
         break
     if m := re.match(r"USE_ESP32_VARIANT_(\w+)", define):
         chip_family = m.group(1)
@@ -122,17 +135,31 @@ for define in data["defines"]:
             raise Exception(f"Unsupported chip family: {chip_family}")
 
         chip_family = ESP32_CHIP_FAMILIES[chip_family]
+        has_factory_part = True
         break
+
+ota_md5 = hashlib.md5(open(dest_ota_bin, "rb").read()).hexdigest()
 
 manifest = {
     "chipFamily": chip_family,
-    "parts": [
+    "ota": {
+        "path": str(dest_ota_bin),
+        "md5": ota_md5,
+    },
+}
+
+if release_summary := os.environ.get("INPUT_RELEASE_SUMMARY"):
+    manifest["ota"]["summary"] = release_summary
+if release_url := os.environ.get("INPUT_RELEASE_URL"):
+    manifest["ota"]["release_url"] = release_url
+
+if has_factory_part:
+    manifest["parts"] = [
         {
-            "path": str(dest_bin),
+            "path": str(dest_factory_bin),
             "offset": 0x00,
         }
-    ],
-}
+    ]
 
 print("Writing manifest file:")
 print(json.dumps(manifest, indent=2))
