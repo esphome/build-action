@@ -94,7 +94,7 @@ if platform == "rp2040":
     source_bin = elf.with_name("firmware.uf2")
     dest_bin = file_base / f"{name}.uf2"
 else:
-    source_bin = elf.with_name("firmware-factory.bin")
+    source_bin = elf.with_name("firmware.factory.bin")
     dest_bin = file_base / f"{name}.bin"
 print("::endgroup::")
 
