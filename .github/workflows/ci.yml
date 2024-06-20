@@ -18,8 +18,8 @@ jobs:
       matrix:
         esphome-version:
           - stable
-          # - beta
-          # - dev
+          - beta
+          - dev
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.7
@@ -50,8 +50,8 @@ jobs:
       matrix:
         esphome-version:
           - stable
-          # - beta
-          # - dev
+          - beta
+          - dev
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.7
