@@ -27,7 +27,7 @@ jobs:
         uses: ./
         id: esphome-build
         with:
-          yaml_file: .github/workflows/test_files/test.yaml
+          yaml_file: tests/test.yaml
           version: ${{ matrix.esphome-version }}
           platform: linux/amd64
           cache: true
@@ -67,5 +67,5 @@ jobs:
 
       - name: Validate json file matches manifest-template.json
         run: |
-          jq -n --arg md5 "$(md5sum test-esp32.ota.bin | head -c 32)" -f .github/workflows/test_files/manifest-template.json > /tmp/manifest.json
+          jq -n --arg md5 "$(md5sum test-esp32.ota.bin | head -c 32)" -f tests/manifest-template.json > /tmp/manifest.json
           diff <(jq --sort-keys . /tmp/manifest.json) <(jq --sort-keys . manifest.json)

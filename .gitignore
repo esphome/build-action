@@ -2,5 +2,5 @@
 venv
 *.bin
 *.json
-!.github/workflows/test_files/manifest-template.json
+!/tests/manifest-template.json
 config/
