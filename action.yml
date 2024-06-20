@@ -89,14 +89,12 @@ runs:
         --workdir /github/workspace \
         -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
         --user $(id -u):$(id -g) \
-        -e INPUT_YAML_FILE -e HOME \
-        -e INPUT_RELEASE_SUMMARY -e INPUT_RELEASE_URL \
-        -e GITHUB_JOB -e GITHUB_REF -e GITHUB_SHA -e GITHUB_REPOSITORY \
-        -e GITHUB_REPOSITORY_OWNER -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER \
-        -e GITHUB_ACTOR -e GITHUB_OUTPUT \
-        -e GITHUB_ACTIONS=true -e CI=true \
+        -e HOME \
         esphome:${{ inputs.version }} \
-        ${{ inputs.yaml_file }}
+        ${{ inputs.yaml_file }} \
+        --release-summary "${{ inputs.release_summary }}" \
+        --release-url "${{ inputs.release_url }}" \
+        --outputs-file "$GITHUB_OUTPUT"
 
 branding:
   icon: "archive"
