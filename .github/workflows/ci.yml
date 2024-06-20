@@ -33,11 +33,12 @@ jobs:
           cache: true
           release_summary: "Test release summary"
           release_url: "https://github.com/esphome/build-action"
-      - run: echo ${{ steps.esphome-build.outputs.version }} > ${{ steps.esphome-build.outputs.name }}/version
+      - name: Write version to file
+        run: echo ${{ steps.esphome-build.outputs.version }} > ${{ steps.esphome-build.outputs.name }}/version
       - name: Upload ESPHome binary
         uses: actions/upload-artifact@v4.3.3
         with:
-          name: build-output-files
+          name: build-output-files-${{ matrix.esphome-version }}
           path: ${{ steps.esphome-build.outputs.name }}
 
   # verify: # TODO
