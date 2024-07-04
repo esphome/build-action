@@ -118,7 +118,6 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
 
     if outputs_file:
         with open(outputs_file, "a", encoding="utf-8") as output:
-            print(f"original_name={original_name}", file=output)
             print(f"original-name={original_name}", file=output)
 
     platform = ""
