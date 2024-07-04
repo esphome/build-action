@@ -29,11 +29,13 @@ This action is used by the [ESPHome publish workflow](https://github.com/esphome
 
 ## Outputs
 
-| Name            | Description                                                                       |
-| --------------- | --------------------------------------------------------------------------------- |
-| `name`          | The name of the device in yaml with the platform (eg. ESP32 or ESP8266) appended. |
-| `version`       | The ESPHome version used during build.                                            |
-| `original_name` | The original name of the device in yaml.                                          |
+| Name              | Description                                                                       |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `name`            | The name of the device in yaml with the platform (eg. ESP32 or ESP8266) appended. |
+| `version`         | The ESPHome version used during build.                                            |
+| `original-name`   | The original name of the device in yaml.                                          |
+| `project-name`    | The name of the project in yaml. `esphome.project.name`                           |
+| `project-version` | The version of the project in yaml. `esphome.project.version`                     |
 
 ## Output files
 
