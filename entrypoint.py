@@ -75,6 +75,8 @@ class Config:
     platform: str
     original_name: str
 
+    raw_config: dict | None = None
+
     def dest_factory_bin(self, file_base: Path) -> Path:
         """Get the destination factory binary path."""
         if self.platform == "rp2040":
@@ -116,7 +118,7 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
 
     if outputs_file:
         with open(outputs_file, "a", encoding="utf-8") as output:
-            print(f"original_name={original_name}", file=output)
+            print(f"original-name={original_name}", file=output)
 
     platform = ""
     if "esp32" in config:
@@ -131,8 +133,16 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
     if outputs_file:
         with open(outputs_file, "a", encoding="utf-8") as output:
             print(f"name={name}", file=output)
+
+    if project_config := config["esphome"].get("project"):
+        if outputs_file:
+            with open(outputs_file, "a", encoding="utf-8") as output:
+                print(f"project-name={project_config['name']}", file=output)
+                print(f"project-version={project_config['version']}", file=output)
     print("::endgroup::")
-    return Config(name=name, platform=platform, original_name=original_name), 0
+    return Config(
+        name=name, platform=platform, original_name=original_name, raw_config=config
+    ), 0
 
 
 def get_idedata(filename: Path) -> tuple[dict | None, int]:

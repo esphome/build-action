@@ -34,8 +34,17 @@ outputs:
     description: ESPHome version
     value: ${{ steps.build-step.outputs.esphome-version }}
   original_name:
+    description: "Original name of device extracted from configuration (DEPRECATED: Use `original-name` instead)"
+    value: ${{ steps.build-step.outputs.original-name }}
+  original-name:
     description: Original name of device extracted from configuration
-    value: ${{ steps.build-step.outputs.original_name }}
+    value: ${{ steps.build-step.outputs.original-name }}
+  project-name:
+    description: Project name extracted from configuration
+    value: ${{ steps.build-step.outputs.project-name }}
+  project-version:
+    description: Project version extracted from configuration
+    value: ${{ steps.build-step.outputs.project-version }}
 
 runs:
   using: composite
