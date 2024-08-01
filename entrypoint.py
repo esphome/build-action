@@ -2,17 +2,16 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 import hashlib
 import json
 import re
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
-
 
 ESP32_CHIP_FAMILIES = {
     "ESP32": "ESP32",
@@ -29,6 +28,21 @@ def parse_args(argv):
     parser.add_argument("configuration", help="Path to the configuration file")
     parser.add_argument("--release-summary", help="Release summary", nargs="?")
     parser.add_argument("--release-url", help="Release URL", nargs="?")
+
+    complete_parser = parser.add_mutually_exclusive_group()
+    complete_parser.add_argument(
+        "--complete-manifest",
+        help="Write complete esp-web-tools manifest.json",
+        action="store_true",
+        dest="complete_manifest",
+    )
+    complete_parser.add_argument(
+        "--partial-manifest",
+        help="Write partial esp-web-tools manifest.json",
+        action="store_false",
+        dest="complete_manifest",
+    )
+    parser.set_defaults(complete_manifest=False)
 
     parser.add_argument("--outputs-file", help="GitHub Outputs file", nargs="?")
 
@@ -57,7 +71,7 @@ def get_esphome_version(outputs_file: str | None) -> tuple[str, int]:
         print("::endgroup::")
         return "", e.returncode
 
-    version = version.decode("utf-8")
+    version = version.decode("utf-8").strip()
     print(version)
     version = version.split(" ")[1].strip()
     if outputs_file:
@@ -74,6 +88,10 @@ class Config:
     name: str
     platform: str
     original_name: str
+    friendly_name: str | None = None
+
+    project_name: str | None = None
+    project_version: str | None = None
 
     raw_config: dict | None = None
 
@@ -115,6 +133,7 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
     config = yaml.load(config, Loader=yaml.FullLoader)
 
     original_name = config["esphome"]["name"]
+    friendly_name = config["esphome"].get("friendly_name")
 
     if outputs_file:
         with open(outputs_file, "a", encoding="utf-8") as output:
@@ -135,13 +154,24 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
             print(f"name={name}", file=output)
 
     if project_config := config["esphome"].get("project"):
+        project_name = project_config["name"]
+        project_version = project_config["version"]
         if outputs_file:
             with open(outputs_file, "a", encoding="utf-8") as output:
-                print(f"project-name={project_config['name']}", file=output)
-                print(f"project-version={project_config['version']}", file=output)
+                print(f"project-name={project_name}", file=output)
+                print(f"project-version={project_version}", file=output)
+    else:
+        project_name = None
+        project_version = None
     print("::endgroup::")
     return Config(
-        name=name, platform=platform, original_name=original_name, raw_config=config
+        name=name,
+        platform=platform,
+        original_name=original_name,
+        raw_config=config,
+        friendly_name=friendly_name,
+        project_name=project_name,
+        project_version=project_version,
     ), 0
 
 
@@ -161,7 +191,7 @@ def get_idedata(filename: Path) -> tuple[dict | None, int]:
     return data, 0
 
 
-def generate_manifest(
+def generate_manifest_part(
     idedata: dict,
     factory_bin: Path,
     ota_bin: Path,
@@ -169,7 +199,6 @@ def generate_manifest(
     release_url: str | None,
 ) -> tuple[dict | None, int]:
     """Generate the manifest."""
-    print("::group::Generate manifest")
 
     chip_family = None
     define: str
@@ -216,10 +245,6 @@ def generate_manifest(
             }
         ]
 
-    print("Writing manifest file:")
-    print(json.dumps(manifest, indent=2))
-
-    print("::endgroup::")
     return manifest, 0
 
 
@@ -232,7 +257,7 @@ def main(argv) -> int:
     if (rc := compile_firmware(filename)) != 0:
         return rc
 
-    _, rc = get_esphome_version(args.outputs_file)
+    esphome_version, rc = get_esphome_version(args.outputs_file)
     if rc != 0:
         return rc
 
@@ -261,11 +286,14 @@ def main(argv) -> int:
     file_base.mkdir(parents=True, exist_ok=True)
 
     shutil.copyfile(source_factory_bin, dest_factory_bin)
+    print("Copied factory binary to:", dest_factory_bin)
     shutil.copyfile(source_ota_bin, dest_ota_bin)
+    print("Copied OTA binary to:", dest_ota_bin)
 
     print("::endgroup::")
 
-    manifest, rc = generate_manifest(
+    print("::group::Generate manifest")
+    manifest, rc = generate_manifest_part(
         idedata,
         dest_factory_bin,
         dest_ota_bin,
@@ -275,8 +303,24 @@ def main(argv) -> int:
     if rc != 0:
         return rc
 
+    if args.complete_manifest:
+        manifest = {
+            "name": config.friendly_name or config.original_name,
+            "version": config.project_version or esphome_version,
+            "home_assistant_domain": "esphome",
+            "new_install_prompt_erase": False,
+            "builds": [
+                manifest,
+            ],
+        }
+
+    print("Writing manifest file:")
+    print(json.dumps(manifest, indent=2))
+
     with open(file_base / "manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
+
+    print("::endgroup::")
 
     return 0
 

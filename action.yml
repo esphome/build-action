@@ -25,6 +25,10 @@ inputs:
     description: Release URL
     required: false
     default: ""
+  complete-manifest:
+    description: Output complete esp-web-tools manifest.json
+    required: false
+    default: false
 
 outputs:
   name:
@@ -94,16 +98,17 @@ runs:
       id: build-step
       run: |-
         docker run --rm \
-        --platform ${{ inputs.platform }} \
-        --workdir /github/workspace \
-        -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
-        --user $(id -u):$(id -g) \
-        -e HOME \
-        esphome:${{ inputs.version }} \
-        ${{ inputs.yaml_file }} \
-        --release-summary "${{ inputs.release_summary }}" \
-        --release-url "${{ inputs.release_url }}" \
-        --outputs-file "$GITHUB_OUTPUT"
+          --platform ${{ inputs.platform }} \
+          --workdir /github/workspace \
+          -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
+          --user $(id -u):$(id -g) \
+          -e HOME \
+          esphome:${{ inputs.version }} \
+            ${{ inputs.yaml_file }} \
+            --release-summary "${{ inputs.release_summary }}" \
+            --release-url "${{ inputs.release_url }}" \
+            --outputs-file "$GITHUB_OUTPUT" \
+            ${{ inputs.complete-manifest == 'true' && '--complete-manifest' || '--partial-manifest' }}
 
 branding:
   icon: "archive"

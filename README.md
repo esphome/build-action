@@ -18,14 +18,15 @@ This action is used by the [ESPHome publish workflow](https://github.com/esphome
 
 ## Inputs
 
-| Name              | Default       | Description                                                                       |
-| ----------------- | ------------- | --------------------------------------------------------------------------------- |
-| `yaml_file`       | _None_        | The YAML file to be compiled.                                                     |
-| `version`         | `latest`      | The ESPHome version to build using.                                               |
-| `platform`        | `linux/amd64` | The docker platform to use during build. (linux/amd64, linux/arm64, linux/arm/v7) |
-| `cache`           | `false`       | Whether to cache the build folder.                                                |
-| `release_summary` | _None_        | A small summary of the release that will be added to the manifest file.           |
-| `release_url`     | _None_        | A URL to the release page that will be added to the manifest file.                |
+| Name                | Default       | Description                                                                             |
+| ------------------- | ------------- | --------------------------------------------------------------------------------------- |
+| `yaml_file`         | _None_        | The YAML file to be compiled.                                                           |
+| `version`           | `latest`      | The ESPHome version to build using.                                                     |
+| `platform`          | `linux/amd64` | The docker platform to use during build. (linux/amd64, linux/arm64, linux/arm/v7)       |
+| `cache`             | `false`       | Whether to cache the build folder.                                                      |
+| `release_summary`   | _None_        | A small summary of the release that will be added to the manifest file.                 |
+| `release_url`       | _None_        | A URL to the release page that will be added to the manifest file.                      |
+| `complete-manifest` | `false`       | Whether to output a complete manifest file. Defaults to output a partial manifest only. |
 
 ## Outputs
 
@@ -41,6 +42,8 @@ This action is used by the [ESPHome publish workflow](https://github.com/esphome
 
 This action will output a folder named with the output `name` and will contain three files:
 
-- `manifest.json` - This goes into the `builds` section of an esp-web-tools manifest.json.
+- `manifest.json` 
+  - If `complete-manifest` is set to `true` then this file is directly usable by esp-web-tools.
+  - Otherwise, this goes into the `builds` section of an esp-web-tools manifest.json.
 - `{name}.factory.bin` - The firmware to be flashed with esp-web-tools.
 - `{name}.ota.bin` - The firmware that can be flashed over-the-air to the device using the [Managed Updated via HTTP Request](https://esphome.io/components/update/http_request).
