@@ -5,3 +5,15 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
+    groups:
+      docker-actions:
+        applies-to: version-updates
+        patterns:
+          - "docker/setup-qemu-action"
+          - "docker/login-action"
+          - "docker/setup-buildx-action"
+      artifacts:
+        applies-to: version-updates
+        patterns:
+          - "actions/upload-artifact"
+          - "actions/download-artifact"
