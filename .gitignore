@@ -2,5 +2,5 @@
 venv
 *.bin
 *.json
-!/tests/manifest-template.json
+!/tests/*manifest-template.json
 config/
