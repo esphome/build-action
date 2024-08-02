@@ -227,7 +227,7 @@ def generate_manifest_part(
     manifest = {
         "chipFamily": chip_family,
         "ota": {
-            "path": str(ota_bin),
+            "path": ota_bin.name,
             "md5": ota_md5,
         },
     }
@@ -240,7 +240,7 @@ def generate_manifest_part(
     if has_factory_part:
         manifest["parts"] = [
             {
-                "path": str(factory_bin),
+                "path": str(factory_bin.name),
                 "offset": 0x00,
             }
         ]

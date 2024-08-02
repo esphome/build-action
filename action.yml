@@ -2,7 +2,7 @@ name: ESPHome Builder
 description: Builds ESPHome binaries
 
 inputs:
-  yaml_file:
+  yaml-file:
     description: YAML file to use
     required: true
   version:
@@ -17,11 +17,11 @@ inputs:
     description: Cache build directory
     required: false
     default: false
-  release_summary:
+  release-summary:
     description: Release summary
     required: false
     default: ""
-  release_url:
+  release-url:
     description: Release URL
     required: false
     default: ""
@@ -37,9 +37,6 @@ outputs:
   version:
     description: ESPHome version
     value: ${{ steps.build-step.outputs.esphome-version }}
-  original_name:
-    description: "Original name of device extracted from configuration (DEPRECATED: Use `original-name` instead)"
-    value: ${{ steps.build-step.outputs.original-name }}
   original-name:
     description: Original name of device extracted from configuration
     value: ${{ steps.build-step.outputs.original-name }}
@@ -71,27 +68,27 @@ runs:
       id: data-dir
       shell: bash
       run: |
-        data_dir=$(dirname ${{ inputs.yaml_file }})/.esphome
+        data_dir=$(dirname ${{ inputs.yaml-file }})/.esphome
         echo "data_dir=$data_dir" >> $GITHUB_OUTPUT
     - if: ${{ inputs.cache == 'true' }}
       name: Cache platformio directory
       uses: actions/cache@v4.0.2
       with:
         path: ~/.platformio
-        key: ${{ runner.os }}-esphome-${{ inputs.yaml_file }}-${{ inputs.version }}-platformio
+        key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-platformio
     - if: ${{ inputs.cache == 'true' }}
       name: Cache build directory
       uses: actions/cache@v4.0.2
       with:
         path: ${{ steps.data-dir.outputs.data_dir }}/build
-        key: ${{ runner.os }}-esphome-${{ inputs.yaml_file }}-${{ inputs.version }}-build
+        key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-build
         save-always: true
     - if: ${{ inputs.cache == 'true' }}
       name: Cache storage directory
       uses: actions/cache@v4.0.2
       with:
         path: ${{ steps.data-dir.outputs.data_dir }}/storage
-        key: ${{ runner.os }}-esphome-${{ inputs.yaml_file }}-${{ inputs.version }}-storage
+        key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-storage
         save-always: true
     - name: Run container
       shell: bash
@@ -104,9 +101,9 @@ runs:
           --user $(id -u):$(id -g) \
           -e HOME \
           esphome:${{ inputs.version }} \
-            ${{ inputs.yaml_file }} \
-            --release-summary "${{ inputs.release_summary }}" \
-            --release-url "${{ inputs.release_url }}" \
+            ${{ inputs.yaml-file }} \
+            --release-summary "${{ inputs.release-summary }}" \
+            --release-url "${{ inputs.release-url }}" \
             --outputs-file "$GITHUB_OUTPUT" \
             ${{ inputs.complete-manifest == 'true' && '--complete-manifest' || '--partial-manifest' }}
 
