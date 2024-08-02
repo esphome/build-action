@@ -38,12 +38,12 @@ jobs:
         uses: ./
         id: esphome-build
         with:
-          yaml_file: tests/test.yaml
+          yaml-file: tests/test.yaml
           version: ${{ matrix.esphome-version }}
           platform: linux/amd64
           cache: true
-          release_summary: "Test release summary"
-          release_url: "https://github.com/esphome/build-action"
+          release-summary: "Test release summary"
+          release-url: "https://github.com/esphome/build-action"
           complete-manifest: ${{ matrix.manifest == 'complete' }}
       - name: Write version to file
         run: echo ${{ steps.esphome-build.outputs.version }} > ${{ steps.esphome-build.outputs.name }}/version
