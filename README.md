@@ -9,9 +9,9 @@ a device via [ESP Web Tools](https://esphome.github.io/esp-web-tools).
 ## Example usage
 
 ```yaml
-uses: esphome/build-action@v1
+uses: esphome/build-action@v4.0.1
 with:
-  yaml_file: my_configuration.yaml
+  yaml-file: my_configuration.yaml
 ```
 
 This action is used by the [ESPHome publish workflow](https://github.com/esphome/workflows/blob/main/.github/workflows/publish.yml) that is used to compile firmware and publish simple GitHub pages sites for projects.
@@ -20,12 +20,12 @@ This action is used by the [ESPHome publish workflow](https://github.com/esphome
 
 | Name                | Default       | Description                                                                             |
 | ------------------- | ------------- | --------------------------------------------------------------------------------------- |
-| `yaml_file`         | _None_        | The YAML file to be compiled.                                                           |
+| `yaml-file`         | _None_        | The YAML file to be compiled.                                                           |
 | `version`           | `latest`      | The ESPHome version to build using.                                                     |
 | `platform`          | `linux/amd64` | The docker platform to use during build. (linux/amd64, linux/arm64, linux/arm/v7)       |
 | `cache`             | `false`       | Whether to cache the build folder.                                                      |
-| `release_summary`   | _None_        | A small summary of the release that will be added to the manifest file.                 |
-| `release_url`       | _None_        | A URL to the release page that will be added to the manifest file.                      |
+| `release-summary`   | _None_        | A small summary of the release that will be added to the manifest file.                 |
+| `release-url`       | _None_        | A URL to the release page that will be added to the manifest file.                      |
 | `complete-manifest` | `false`       | Whether to output a complete manifest file. Defaults to output a partial manifest only. |
 
 ## Outputs
