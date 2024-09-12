@@ -105,7 +105,7 @@ runs:
           -e HOME \
           esphome:${{ inputs.version }} \
             ${{ inputs.yaml-file }} \
-            --release-summary "${{ inputs.release-summary }}" \
+            --release-summary ${{ toJSON(inputs.release-summary) }} \
             --release-url "${{ inputs.release-url }}" \
             --outputs-file "$GITHUB_OUTPUT" \
             ${{ inputs.complete-manifest == 'true' && '--complete-manifest' || '--partial-manifest' }}
