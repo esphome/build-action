@@ -9,7 +9,7 @@ a device via [ESP Web Tools](https://esphome.github.io/esp-web-tools).
 ## Example usage
 
 ```yaml
-uses: esphome/build-action@v4.0.1
+uses: esphome/build-action@v4.0.2
 with:
   yaml-file: my_configuration.yaml
 ```
