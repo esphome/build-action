@@ -97,9 +97,10 @@ runs:
       shell: bash
       id: build-step
       run: |-
-        read -r summary <<'ENDOFSUMMARY'
+        summary=$(cat <<'ENDOFSUMMARY'
         ${{ inputs.release-summary }}
         ENDOFSUMMARY
+        )
 
         echo "$summary"
 
