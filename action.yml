@@ -93,16 +93,11 @@ runs:
         path: ${{ steps.data-dir.outputs.data_dir }}/storage
         key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-storage
         save-always: true
-    - shell: bash
-      run: |-
-        read -r -d '' summary <<'ENDOFSUMMARY'
-        Something Simple
-        ENDOFSUMMARY
     - name: Run container
       shell: bash
       id: build-step
       run: |-
-        read -r -d '' summary <<'ENDOFSUMMARY'
+        read -r summary <<'ENDOFSUMMARY'
         ${{ inputs.release-summary }}
         ENDOFSUMMARY
 
