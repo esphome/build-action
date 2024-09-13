@@ -42,7 +42,7 @@ jobs:
           version: ${{ matrix.esphome-version }}
           platform: linux/amd64
           cache: true
-          release-summary: 'Test "release" summary'
+          release-summary: 'Test "release" summary\r\n* Multiple lines'
           release-url: "https://github.com/esphome/build-action"
           complete-manifest: ${{ matrix.manifest == 'complete' }}
       - name: Write version to file
