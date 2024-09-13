@@ -233,7 +233,6 @@ def generate_manifest_part(
     }
 
     if release_summary:
-        print(release_summary)
         manifest["ota"]["summary"] = release_summary
     if release_url:
         manifest["ota"]["release_url"] = release_url
