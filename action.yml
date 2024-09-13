@@ -96,9 +96,8 @@ runs:
     - shell: bash
       run: |-
         read -r -d '' summary <<'ENDOFSUMMARY'
-        ${{ inputs.release-summary }}
+        Something Simple
         ENDOFSUMMARY
-        echo "$summary"
     - name: Run container
       shell: bash
       id: build-step
