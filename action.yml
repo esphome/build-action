@@ -101,6 +101,8 @@ runs:
         ${{ inputs.release-summary }}
         ENDOFSUMMARY
 
+        echo "$summary"
+
         docker run --rm \
           --platform ${{ inputs.platform }} \
           --workdir /github/workspace \
