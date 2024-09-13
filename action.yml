@@ -97,6 +97,11 @@ runs:
       shell: bash
       id: build-step
       run: |-
+        summary=$(cat <<'ENDOFSUMMARY'
+        ${{ inputs.release-summary }}
+        ENDOFSUMMARY
+        )
+
         docker run --rm \
           --platform ${{ inputs.platform }} \
           --workdir /github/workspace \
@@ -105,7 +110,7 @@ runs:
           -e HOME \
           esphome:${{ inputs.version }} \
             ${{ inputs.yaml-file }} \
-            --release-summary ${{ toJSON(inputs.release-summary) }} \
+            --release-summary "$summary" \
             --release-url "${{ inputs.release-url }}" \
             --outputs-file "$GITHUB_OUTPUT" \
             ${{ inputs.complete-manifest == 'true' && '--complete-manifest' || '--partial-manifest' }}
