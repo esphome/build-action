@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TEST_RELEASE_SUMMARY: |
+  TEST_RELEASE_SUMMARY: |-
     Test "release" summary
     * Multiple lines
 
