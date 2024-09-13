@@ -17,6 +17,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  TEST_RELEASE_SUMMARY: |
+    Test "release" summary
+    * Multiple lines
+
 jobs:
   build:
     name: Build test configuration for esphome:${{ matrix.esphome-version }} with ${{ matrix.manifest }} manifest
@@ -42,7 +47,7 @@ jobs:
           version: ${{ matrix.esphome-version }}
           platform: linux/amd64
           cache: true
-          release-summary: 'Test "release" summary\r\n* Multiple lines'
+          release-summary: ${{ env.TEST_RELEASE_SUMMARY }}
           release-url: "https://github.com/esphome/build-action"
           complete-manifest: ${{ matrix.manifest == 'complete' }}
       - name: Write version to file
