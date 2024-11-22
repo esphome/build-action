@@ -105,6 +105,10 @@ class Config:
         """Get the destination OTA binary path."""
         return file_base / f"{self.name}.ota.bin"
 
+    def dest_elf(self, file_base: Path) -> Path:
+        """Get the destination ELF path."""
+        return file_base / f"{self.name}.elf"
+
     def source_factory_bin(self, elf: Path) -> Path:
         """Get the source factory binary path."""
         if self.platform == "rp2040":
@@ -283,14 +287,16 @@ def main(argv) -> int:
     source_ota_bin = config.source_ota_bin(elf)
     dest_ota_bin = config.dest_ota_bin(file_base)
 
+    dest_elf = config.dest_elf(file_base)
+
     file_base.mkdir(parents=True, exist_ok=True)
 
     shutil.copyfile(source_factory_bin, dest_factory_bin)
     print("Copied factory binary to:", dest_factory_bin)
     shutil.copyfile(source_ota_bin, dest_ota_bin)
     print("Copied OTA binary to:", dest_ota_bin)
-    shutil.copyfile(elf, file_base / elf.name)
-    print("Copied ELF file to:", file_base / elf.name)
+    shutil.copyfile(elf, dest_elf)
+    print("Copied ELF file to:", dest_elf)
 
     print("::endgroup::")
 
