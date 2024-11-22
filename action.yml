@@ -17,6 +17,10 @@ inputs:
     description: Cache build directory
     required: false
     default: false
+    deprecationMessage: |
+      There is little to no gain in caching the build directory as
+      ESPHome will wipe the build artifacts in most cases for releases.
+      This will be removed in a future release.
   release-summary:
     description: Release summary
     required: false
@@ -67,6 +71,7 @@ runs:
         tags: esphome:${{ inputs.version }}
         build-args: VERSION=${{ inputs.version }}
         platforms: ${{ inputs.platform }}
+
     - if: ${{ inputs.cache == 'true' }}
       id: data-dir
       shell: bash
@@ -93,6 +98,7 @@ runs:
         path: ${{ steps.data-dir.outputs.data_dir }}/storage
         key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-storage
         save-always: true
+
     - name: Run container
       shell: bash
       id: build-step
