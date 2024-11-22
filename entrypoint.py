@@ -289,6 +289,8 @@ def main(argv) -> int:
     print("Copied factory binary to:", dest_factory_bin)
     shutil.copyfile(source_ota_bin, dest_ota_bin)
     print("Copied OTA binary to:", dest_ota_bin)
+    shutil.copyfile(elf, file_base / elf.name)
+    print("Copied ELF file to:", file_base / elf.name)
 
     print("::endgroup::")
 
