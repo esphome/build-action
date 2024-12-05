@@ -1,5 +1,5 @@
 {
-  "name": "test",
+  "name": "example-project",
   "version": "3.5.0",
   "home_assistant_domain": "esphome",
   "new_install_prompt_erase": false,
