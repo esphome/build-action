@@ -313,7 +313,7 @@ def main(argv) -> int:
 
     if args.complete_manifest:
         manifest = {
-            "name": config.friendly_name or config.original_name,
+            "name": config.project_name or config.friendly_name or config.original_name,
             "version": config.project_version or esphome_version,
             "home_assistant_domain": "esphome",
             "new_install_prompt_erase": False,
