@@ -80,20 +80,20 @@ runs:
         echo "data_dir=$data_dir" >> $GITHUB_OUTPUT
     - if: ${{ inputs.cache == 'true' }}
       name: Cache platformio directory
-      uses: actions/cache@v4.1.2
+      uses: actions/cache@v4.2.0
       with:
         path: ~/.platformio
         key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-platformio
     - if: ${{ inputs.cache == 'true' }}
       name: Cache build directory
-      uses: actions/cache@v4.1.2
+      uses: actions/cache@v4.2.0
       with:
         path: ${{ steps.data-dir.outputs.data_dir }}/build
         key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-build
         save-always: true
     - if: ${{ inputs.cache == 'true' }}
       name: Cache storage directory
-      uses: actions/cache@v4.1.2
+      uses: actions/cache@v4.2.0
       with:
         path: ${{ steps.data-dir.outputs.data_dir }}/storage
         key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-storage
