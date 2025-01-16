@@ -13,14 +13,6 @@ inputs:
     description: Platform (OS/Arch) to use
     required: false
     default: linux/amd64
-  cache:
-    description: Cache build directory
-    required: false
-    default: false
-    deprecationMessage: |
-      There is little to no gain in caching the build directory as
-      ESPHome will wipe the build artifacts in most cases for releases.
-      This will be removed in a future release.
   release-summary:
     description: Release summary
     required: false
@@ -71,34 +63,6 @@ runs:
         tags: esphome:${{ inputs.version }}
         build-args: VERSION=${{ inputs.version }}
         platforms: ${{ inputs.platform }}
-
-    - if: ${{ inputs.cache == 'true' }}
-      id: data-dir
-      shell: bash
-      run: |
-        data_dir=$(dirname ${{ inputs.yaml-file }})/.esphome
-        echo "data_dir=$data_dir" >> $GITHUB_OUTPUT
-    - if: ${{ inputs.cache == 'true' }}
-      name: Cache platformio directory
-      uses: actions/cache@v4.1.2
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-platformio
-    - if: ${{ inputs.cache == 'true' }}
-      name: Cache build directory
-      uses: actions/cache@v4.1.2
-      with:
-        path: ${{ steps.data-dir.outputs.data_dir }}/build
-        key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-build
-        save-always: true
-    - if: ${{ inputs.cache == 'true' }}
-      name: Cache storage directory
-      uses: actions/cache@v4.1.2
-      with:
-        path: ${{ steps.data-dir.outputs.data_dir }}/storage
-        key: ${{ runner.os }}-esphome-${{ inputs.yaml-file }}-${{ inputs.version }}-storage
-        save-always: true
-
     - name: Run container
       shell: bash
       id: build-step
