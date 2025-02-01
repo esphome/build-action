@@ -53,7 +53,7 @@ runs:
       with:
         platforms: ${{ inputs.platform }}
     - name: Build ESPHome image
-      uses: docker/build-push-action@v6.10.0
+      uses: docker/build-push-action@v6.13.0
       env:
         DOCKER_BUILD_SUMMARY: false
         DOCKER_BUILD_RECORD_UPLOAD: false
