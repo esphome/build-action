@@ -31,8 +31,8 @@ jobs:
       max-parallel: 2
       matrix:
         esphome-version:
-          # - stable
-          # - beta
+          - stable
+          - beta
           - dev
         manifest:
           - complete
