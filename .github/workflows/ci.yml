@@ -24,10 +24,11 @@ env:
 
 jobs:
   build:
-    name: Build test configuration for esphome:${{ matrix.esphome-version }} with ${{ matrix.manifest }} manifest
-    runs-on: ubuntu-latest
+    name: esphome:${{ matrix.esphome-version }} / ${{ matrix.manifest }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         esphome-version:
           - stable
@@ -36,6 +37,9 @@ jobs:
         manifest:
           - complete
           - partial
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
@@ -45,8 +49,6 @@ jobs:
         with:
           yaml-file: tests/test.yaml
           version: ${{ matrix.esphome-version }}
-          platform: linux/amd64
-          cache: true
           release-summary: ${{ env.TEST_RELEASE_SUMMARY }}
           release-url: "https://github.com/esphome/build-action"
           complete-manifest: ${{ matrix.manifest == 'complete' }}
@@ -55,12 +57,12 @@ jobs:
       - name: Upload ESPHome binary
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}
+          name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
           path: ${{ steps.esphome-build.outputs.name }}
 
   verify:
     name: Verify output files for esphome:${{ matrix.esphome-version }} with ${{ matrix.manifest }} manifest
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: build
     strategy:
       fail-fast: false
@@ -72,13 +74,17 @@ jobs:
         manifest:
           - complete
           - partial
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
       - name: Download files
         uses: actions/download-artifact@v4.2.1
         with:
-          name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}
+          name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
 
       - name: List files
         run: |-

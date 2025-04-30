@@ -18,14 +18,13 @@ This action is used by the [ESPHome publish workflow](https://github.com/esphome
 
 ## Inputs
 
-| Name                | Default       | Description                                                                             |
-| ------------------- | ------------- | --------------------------------------------------------------------------------------- |
-| `yaml-file`         | _None_        | The YAML file to be compiled.                                                           |
-| `version`           | `latest`      | The ESPHome version to build using.                                                     |
-| `platform`          | `linux/amd64` | The docker platform to use during build. (linux/amd64, linux/arm64, linux/arm/v7)       |
-| `release-summary`   | _None_        | A small summary of the release that will be added to the manifest file.                 |
-| `release-url`       | _None_        | A URL to the release page that will be added to the manifest file.                      |
-| `complete-manifest` | `false`       | Whether to output a complete manifest file. Defaults to output a partial manifest only. |
+| Name                | Default  | Description                                                                             |
+| ------------------- | -------- | --------------------------------------------------------------------------------------- |
+| `yaml-file`         | _None_   | The YAML file to be compiled.                                                           |
+| `version`           | `latest` | The ESPHome version to build using.                                                     |
+| `release-summary`   | _None_   | A small summary of the release that will be added to the manifest file.                 |
+| `release-url`       | _None_   | A URL to the release page that will be added to the manifest file.                      |
+| `complete-manifest` | `false`  | Whether to output a complete manifest file. Defaults to output a partial manifest only. |
 
 ## Outputs
 

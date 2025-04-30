@@ -13,6 +13,10 @@ inputs:
     description: Platform (OS/Arch) to use
     required: false
     default: linux/amd64
+    deprecationMessage: |
+      The platform input is no longer used. ESPHome and this action supports
+      amd64 and arm64, both are supported by GitHub as the job runner architecture
+      by altering `runs-on` in the workflow.
   release-summary:
     description: Release summary
     required: false
@@ -46,12 +50,8 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3.6.0
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3.10.0
-      with:
-        platforms: ${{ inputs.platform }}
     - name: Build ESPHome image
       uses: docker/build-push-action@v6.15.0
       env:
@@ -62,7 +62,6 @@ runs:
         load: true
         tags: esphome:${{ inputs.version }}
         build-args: VERSION=${{ inputs.version }}
-        platforms: ${{ inputs.platform }}
     - name: Run container
       shell: bash
       id: build-step
@@ -73,7 +72,6 @@ runs:
         )
 
         docker run --rm \
-          --platform ${{ inputs.platform }} \
           --workdir /github/workspace \
           -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
           --user $(id -u):$(id -g) \
