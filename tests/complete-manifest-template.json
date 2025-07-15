@@ -8,14 +8,17 @@
       "chipFamily": "ESP32",
       "ota": {
         "path": "test-esp32.ota.bin",
-        "md5": "\($md5)",
+        "md5": "\($ota_md5)",
+        "sha256": "\($ota_sha256)",
         "summary": "Test \"release\" summary\n* Multiple lines",
         "release_url": "https://github.com/esphome/build-action"
       },
       "parts": [
         {
           "path": "test-esp32.factory.bin",
-          "offset": 0
+          "offset": 0,
+          "md5": "\($factory_md5)",
+          "sha256": "\($factory_sha256)"
         }
       ]
     }

@@ -227,12 +227,15 @@ def generate_manifest_part(
 
     with open(ota_bin, "rb") as f:
         ota_md5 = hashlib.md5(f.read()).hexdigest()
+        f.seek(0)
+        ota_sha256 = hashlib.sha256(f.read()).hexdigest()
 
     manifest = {
         "chipFamily": chip_family,
         "ota": {
             "path": ota_bin.name,
             "md5": ota_md5,
+            "sha256": ota_sha256,
         },
     }
 
@@ -242,10 +245,16 @@ def generate_manifest_part(
         manifest["ota"]["release_url"] = release_url
 
     if has_factory_part:
+        with open(factory_bin, "rb") as f:
+            factory_md5 = hashlib.md5(f.read()).hexdigest()
+            f.seek(0)
+            factory_sha256 = hashlib.sha256(f.read()).hexdigest()
         manifest["parts"] = [
             {
                 "path": str(factory_bin.name),
                 "offset": 0x00,
+                "md5": factory_md5,
+                "sha256": factory_sha256,
             }
         ]
 
