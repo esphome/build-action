@@ -100,3 +100,81 @@ jobs:
             --arg factory_sha256 "$(sha256sum test-esp32.factory.bin | head -c 64)" \
             -f tests/${{ matrix.manifest }}-manifest-template.json > /tmp/manifest.json
           diff <(jq --sort-keys . /tmp/manifest.json) <(jq --sort-keys . manifest.json)
+
+  build-substitutions:
+    name: substitutions / esphome:${{ matrix.esphome-version }} / ${{ matrix.manifest }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        esphome-version:
+          - stable
+          - beta
+          - dev
+        manifest:
+          - complete
+          - partial
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Run action
+        uses: ./
+        id: esphome-build
+        with:
+          yaml-file: tests/test-substitutions.yaml
+          version: ${{ matrix.esphome-version }}
+          release-summary: ${{ env.TEST_RELEASE_SUMMARY }}
+          release-url: "https://github.com/esphome/build-action"
+          complete-manifest: ${{ matrix.manifest == 'complete' }}
+          substitutions: |
+            device_name=test-substitutions
+            board=esp32dev
+      - name: Write version to file
+        run: echo ${{ steps.esphome-build.outputs.version }} > ${{ steps.esphome-build.outputs.name }}/version
+      - name: Upload ESPHome binary
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: build-output-substitutions-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
+          path: ${{ steps.esphome-build.outputs.name }}
+
+  verify-substitutions:
+    name: Verify substitutions output for esphome:${{ matrix.esphome-version }} with ${{ matrix.manifest }} manifest
+    runs-on: ${{ matrix.os }}
+    needs: build-substitutions
+    strategy:
+      fail-fast: false
+      matrix:
+        esphome-version:
+          - stable
+          - beta
+          - dev
+        manifest:
+          - complete
+          - partial
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Download files
+        uses: actions/download-artifact@v4.2.1
+        with:
+          name: build-output-substitutions-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
+      - name: List files
+        run: |-
+          ls -al
+          tree
+      - name: Validate json file matches ${{ matrix.manifest }} manifest-template.json
+        run: |
+          jq -n \
+            --arg ota_md5 "$(md5sum test-substitutions-esp32.ota.bin | head -c 32)" \
+            --arg ota_sha256 "$(sha256sum test-substitutions-esp32.ota.bin | head -c 64)" \
+            --arg factory_md5 "$(md5sum test-substitutions-esp32.factory.bin | head -c 32)" \
+            --arg factory_sha256 "$(sha256sum test-substitutions-esp32.factory.bin | head -c 64)" \
+            -f tests/${{ matrix.manifest }}-substitutions-manifest-template.json > /tmp/manifest.json
+          diff <(jq --sort-keys . /tmp/manifest.json) <(jq --sort-keys . manifest.json)

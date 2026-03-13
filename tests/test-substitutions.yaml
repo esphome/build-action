@@ -1,0 +1,8 @@
+esphome:
+  name: "${device_name}"
+  project:
+    name: esphome.example-project
+    version: "3.5.0"
+
+esp32:
+  board: "${board}"
