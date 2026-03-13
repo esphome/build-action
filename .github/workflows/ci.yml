@@ -169,7 +169,7 @@ jobs:
         run: |-
           ls -al
           tree
-      - name: Validate json file matches ${{ matrix.manifest }} manifest-template.json
+      - name: Validate json file matches ${{ matrix.manifest }} substitutions-manifest-template.json
         run: |
           jq -n \
             --arg ota_md5 "$(md5sum test-substitutions-esp32.ota.bin | head -c 32)" \
