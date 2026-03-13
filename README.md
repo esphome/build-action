@@ -14,6 +14,17 @@ with:
   yaml-file: my_configuration.yaml
 ```
 
+To pass build-time substitutions:
+
+```yaml
+uses: esphome/build-action@v6
+with:
+  yaml-file: my_configuration.yaml
+  substitutions: |
+    name=my-device
+    board_pin=GPIO4
+```
+
 This action is used by the [ESPHome publish workflow](https://github.com/esphome/workflows/blob/main/.github/workflows/publish.yml) that is used to compile firmware and publish simple GitHub pages sites for projects.
 
 ## Inputs
@@ -25,6 +36,7 @@ This action is used by the [ESPHome publish workflow](https://github.com/esphome
 | `release-summary`   | _None_   | A small summary of the release that will be added to the manifest file.                 |
 | `release-url`       | _None_   | A URL to the release page that will be added to the manifest file.                      |
 | `complete-manifest` | `false`  | Whether to output a complete manifest file. Defaults to output a partial manifest only. |
+| `substitutions`     | _None_   | Build-time substitutions passed to ESPHome via the `-s` flag. One `key=value` pair per line. |
 
 ## Outputs
 

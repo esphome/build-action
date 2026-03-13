@@ -29,6 +29,16 @@ inputs:
     description: Output complete esp-web-tools manifest.json
     required: false
     default: false
+  substitutions:
+    description: |
+      Build-time substitutions to pass to ESPHome via the `-s` flag.
+      Provide one `key=value` pair per line. Values may contain `=` signs.
+      Example:
+        substitutions: |
+          name=my-device
+          board_pin=GPIO4
+    required: false
+    default: ""
 
 outputs:
   name:
@@ -71,6 +81,17 @@ runs:
         ENDOFSUMMARY
         )
 
+        # Parse the multiline `substitutions` input into repeated
+        # `--substitution key=value` arguments for entrypoint.py.
+        # Blank lines (e.g. trailing newlines from a YAML block scalar) are skipped.
+        substitution_args=()
+        while IFS= read -r line; do
+          [[ -z "${line}" ]] && continue
+          substitution_args+=(--substitution "${line}")
+        done <<'ENDOFSUBSTITUTIONS'
+        ${{ inputs.substitutions }}
+        ENDOFSUBSTITUTIONS
+
         docker run --rm \
           --workdir /github/workspace \
           -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
@@ -78,6 +99,7 @@ runs:
           -e HOME \
           esphome:${{ inputs.version }} \
             ${{ inputs.yaml-file }} \
+            "${substitution_args[@]}" \
             --release-summary "$summary" \
             --release-url "${{ inputs.release-url }}" \
             --outputs-file "$GITHUB_OUTPUT" \
