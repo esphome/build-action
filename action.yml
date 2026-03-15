@@ -61,9 +61,9 @@ runs:
   using: composite
   steps:
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3.11.1
+      uses: docker/setup-buildx-action@v4.0.0
     - name: Build ESPHome image
-      uses: docker/build-push-action@v6.18.0
+      uses: docker/build-push-action@v7.0.0
       env:
         DOCKER_BUILD_SUMMARY: false
         DOCKER_BUILD_RECORD_UPLOAD: false
