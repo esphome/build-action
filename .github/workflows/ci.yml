@@ -42,7 +42,7 @@ jobs:
           - ubuntu-24.04-arm
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Run action
         uses: ./
         id: esphome-build
@@ -55,7 +55,7 @@ jobs:
       - name: Write version to file
         run: echo ${{ steps.esphome-build.outputs.version }} > ${{ steps.esphome-build.outputs.name }}/version
       - name: Upload ESPHome binary
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
           path: ${{ steps.esphome-build.outputs.name }}
@@ -80,9 +80,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Download files
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
 
