@@ -3,7 +3,7 @@ description: Builds ESPHome binaries
 
 inputs:
   yaml-file:
-    description: YAML file to use
+    description: YAML file(s) to use, one per line
     required: true
   version:
     description: Version of ESPHome to build
@@ -71,13 +71,20 @@ runs:
         ENDOFSUMMARY
         )
 
+        yaml_args=()
+        while IFS= read -r line; do
+          line="${line#"${line%%[![:space:]]*}"}"
+          line="${line%"${line##*[![:space:]]}"}"
+          [[ -n "$line" ]] && yaml_args+=("$line")
+        done <<< "${{ inputs.yaml-file }}"
+
         docker run --rm \
           --workdir /github/workspace \
           -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
           --user $(id -u):$(id -g) \
           -e HOME \
           esphome:${{ inputs.version }} \
-            ${{ inputs.yaml-file }} \
+            "${yaml_args[@]}" \
             --release-summary "$summary" \
             --release-url "${{ inputs.release-url }}" \
             --outputs-file "$GITHUB_OUTPUT" \
