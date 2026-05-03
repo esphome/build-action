@@ -8,10 +8,22 @@ a device via [ESP Web Tools](https://esphome.github.io/esp-web-tools).
 
 ## Example usage
 
+Single file:
+
 ```yaml
 uses: esphome/build-action@v6
 with:
   yaml-file: my_configuration.yaml
+```
+
+Multiple files:
+
+```yaml
+uses: esphome/build-action@v6
+with:
+  yaml-file: |
+    my_configuration_1.yaml
+    my_configuration_2.yaml
 ```
 
 This action is used by the [ESPHome publish workflow](https://github.com/esphome/workflows/blob/main/.github/workflows/publish.yml) that is used to compile firmware and publish simple GitHub pages sites for projects.
@@ -20,7 +32,7 @@ This action is used by the [ESPHome publish workflow](https://github.com/esphome
 
 | Name                | Default  | Description                                                                             |
 | ------------------- | -------- | --------------------------------------------------------------------------------------- |
-| `yaml-file`         | _None_   | The YAML file to be compiled.                                                           |
+| `yaml-file`         | _None_   | The YAML file(s) to be compiled.                                                        |
 | `version`           | `latest` | The ESPHome version to build using.                                                     |
 | `release-summary`   | _None_   | A small summary of the release that will be added to the manifest file.                 |
 | `release-url`       | _None_   | A URL to the release page that will be added to the manifest file.                      |
