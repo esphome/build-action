@@ -25,7 +25,7 @@ ESP32_CHIP_FAMILIES = {
 def parse_args(argv):
     """Parse the arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("configuration", help="Path to the configuration file")
+    parser.add_argument("configuration", help="Path to the configuration file(s)", nargs="+")
     parser.add_argument("--release-summary", help="Release summary", nargs="?")
     parser.add_argument("--release-url", help="Release URL", nargs="?")
 
@@ -261,22 +261,16 @@ def generate_manifest_part(
     return manifest, 0
 
 
-def main(argv) -> int:
-    """Main entrypoint."""
-    args = parse_args(argv)
-
-    filename = Path(args.configuration)
-
+def build_config(
+    filename: Path, args
+) -> tuple[dict | None, Config | None, int]:
+    """Compile a single firmware and return its partial manifest part and config."""
     if (rc := compile_firmware(filename)) != 0:
-        return rc
-
-    esphome_version, rc = get_esphome_version(args.outputs_file)
-    if rc != 0:
-        return rc
+        return None, None, rc
 
     config, rc = get_config(filename, args.outputs_file)
     if rc != 0:
-        return rc
+        return None, None, rc
 
     assert config is not None
 
@@ -284,7 +278,7 @@ def main(argv) -> int:
 
     idedata, rc = get_idedata(filename)
     if rc != 0:
-        return rc
+        return None, None, rc
 
     print("::group::Copy firmware file(s) to folder")
 
@@ -309,8 +303,7 @@ def main(argv) -> int:
 
     print("::endgroup::")
 
-    print("::group::Generate manifest")
-    manifest, rc = generate_manifest_part(
+    manifest_part, rc = generate_manifest_part(
         idedata,
         dest_factory_bin,
         dest_ota_bin,
@@ -318,24 +311,83 @@ def main(argv) -> int:
         args.release_url,
     )
     if rc != 0:
+        return None, None, rc
+
+    return manifest_part, config, 0
+
+
+def _write_manifest(manifest: dict, path: Path) -> None:
+    print("Writing manifest file:", path)
+    print(json.dumps(manifest, indent=2))
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+
+
+def _prefix_manifest_paths(manifest_part: dict, directory: Path) -> dict:
+    """Return a copy of a manifest part with file paths prefixed by directory."""
+    part = {
+        **manifest_part,
+        "ota": {
+            **manifest_part["ota"],
+            "path": str(directory / manifest_part["ota"]["path"]),
+        },
+    }
+    if "parts" in manifest_part:
+        part["parts"] = [
+            {**p, "path": str(directory / p["path"])}
+            for p in manifest_part["parts"]
+        ]
+    return part
+
+
+def main(argv) -> int:
+    """Main entrypoint."""
+    args = parse_args(argv)
+
+    esphome_version, rc = get_esphome_version(args.outputs_file)
+    if rc != 0:
         return rc
 
-    if args.complete_manifest:
-        manifest = {
-            "name": config.project_name or config.friendly_name or config.original_name,
-            "version": config.project_version or esphome_version,
-            "home_assistant_domain": "esphome",
-            "new_install_prompt_erase": False,
-            "builds": [
-                manifest,
-            ],
-        }
+    results: list[tuple[dict, Config]] = []
+    for config_path in args.configuration:
+        manifest_part, config, rc = build_config(Path(config_path), args)
+        if rc != 0:
+            return rc
+        results.append((manifest_part, config))
 
-    print("Writing manifest file:")
-    print(json.dumps(manifest, indent=2))
+    print("::group::Generate manifest")
 
-    with open(file_base / "manifest.json", "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2)
+    if len(results) == 1:
+        manifest_part, config = results[0]
+        file_base = Path(config.name)
+        if args.complete_manifest:
+            manifest = {
+                "name": config.project_name or config.friendly_name or config.original_name,
+                "version": config.project_version or esphome_version,
+                "home_assistant_domain": "esphome",
+                "new_install_prompt_erase": False,
+                "builds": [manifest_part],
+            }
+        else:
+            manifest = manifest_part
+        _write_manifest(manifest, file_base / "manifest.json")
+    else:
+        for manifest_part, config in results:
+            _write_manifest(manifest_part, Path(config.name) / "manifest.json")
+
+        if args.complete_manifest:
+            first_config = results[0][1]
+            combined = {
+                "name": first_config.project_name or first_config.friendly_name or first_config.original_name,
+                "version": first_config.project_version or esphome_version,
+                "home_assistant_domain": "esphome",
+                "new_install_prompt_erase": False,
+                "builds": [
+                    _prefix_manifest_paths(part, Path(config.name))
+                    for part, config in results
+                ],
+            }
+            _write_manifest(combined, Path("manifest.json"))
 
     print("::endgroup::")
 
