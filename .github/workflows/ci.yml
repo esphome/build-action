@@ -23,6 +23,28 @@ env:
     * Multiple lines
 
 jobs:
+  unit-tests:
+    name: Unit tests / esphome:${{ matrix.esphome-version }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        esphome-version:
+          - stable
+          - beta
+          - dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Run unit tests inside esphome:${{ matrix.esphome-version }}
+        run: |-
+          docker run --rm \
+            --workdir /github/workspace \
+            -v "$(pwd)":"/github/workspace" \
+            --entrypoint python \
+            ghcr.io/esphome/esphome:${{ matrix.esphome-version }} \
+            -m unittest discover -s tests -p 'test_*.py' -v
+
   build:
     name: esphome:${{ matrix.esphome-version }} / ${{ matrix.manifest }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

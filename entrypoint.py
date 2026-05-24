@@ -121,34 +121,16 @@ class Config:
         return elf.with_name("firmware.ota.bin")
 
 
-def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None, int]:
-    """Get the configuration."""
-    print("::group::Get config")
-    try:
-        config = subprocess.check_output(
-            ["esphome", "config", filename], stderr=sys.stderr
-        )
-    except subprocess.CalledProcessError as e:
-        return None, e.returncode
-
-    config = config.decode("utf-8")
-    print(config)
-
-    yaml.add_multi_constructor("", lambda _, t, n: t + " " + n.value)
-    config = yaml.load(config, Loader=yaml.FullLoader)
-
-    original_name = config["esphome"]["name"]
-    friendly_name = config["esphome"].get("friendly_name")
-
-    if outputs_file:
-        with open(outputs_file, "a", encoding="utf-8") as output:
-            print(f"original-name={original_name}", file=output)
+def parse_config(config_dict: dict) -> tuple[Config | None, int]:
+    """Parse a validated ESPHome config dict into a Config object."""
+    original_name = config_dict["esphome"]["name"]
+    friendly_name = config_dict["esphome"].get("friendly_name")
 
     platform = ""
     variant = ""
     chip_family: str | None = None
     has_factory_part = False
-    if esp32_config := config.get("esp32"):
+    if esp32_config := config_dict.get("esp32"):
         # esp32c3 / esp32c6 / esp32s2 / esp32s3 / esp32p4 etc
         platform = "esp32"
         variant_upper = esp32_config["variant"]
@@ -158,12 +140,12 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
             return None, 1
         chip_family = ESP32_CHIP_FAMILIES[variant_upper]
         has_factory_part = True
-    elif "esp8266" in config:
+    elif "esp8266" in config_dict:
         platform = "esp8266"
         variant = "esp8266"
         chip_family = "ESP8266"
         has_factory_part = True
-    elif rp2040_config := config.get("rp2040"):
+    elif rp2040_config := config_dict.get("rp2040"):
         # rp2040 / rp2350
         platform = "rp2040"
         variant_upper = rp2040_config.get("variant", "RP2040")
@@ -175,21 +157,12 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
 
     name = f"{original_name}-{variant}"
 
-    if outputs_file:
-        with open(outputs_file, "a", encoding="utf-8") as output:
-            print(f"name={name}", file=output)
-
-    if project_config := config["esphome"].get("project"):
+    project_name: str | None = None
+    project_version: str | None = None
+    if project_config := config_dict["esphome"].get("project"):
         project_name = project_config["name"]
         project_version = project_config["version"]
-        if outputs_file:
-            with open(outputs_file, "a", encoding="utf-8") as output:
-                print(f"project-name={project_name}", file=output)
-                print(f"project-version={project_version}", file=output)
-    else:
-        project_name = None
-        project_version = None
-    print("::endgroup::")
+
     return Config(
         name=name,
         platform=platform,
@@ -197,11 +170,44 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
         chip_family=chip_family,
         has_factory_part=has_factory_part,
         original_name=original_name,
-        raw_config=config,
+        raw_config=config_dict,
         friendly_name=friendly_name,
         project_name=project_name,
         project_version=project_version,
     ), 0
+
+
+def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None, int]:
+    """Run `esphome config` and parse the validated YAML into a Config."""
+    print("::group::Get config")
+    try:
+        raw = subprocess.check_output(
+            ["esphome", "config", filename], stderr=sys.stderr
+        )
+    except subprocess.CalledProcessError as e:
+        return None, e.returncode
+
+    raw = raw.decode("utf-8")
+    print(raw)
+
+    yaml.add_multi_constructor("", lambda _, t, n: t + " " + n.value)
+    config_dict = yaml.load(raw, Loader=yaml.FullLoader)
+
+    config, rc = parse_config(config_dict)
+    if rc != 0 or config is None:
+        print("::endgroup::")
+        return None, rc
+
+    if outputs_file:
+        with open(outputs_file, "a", encoding="utf-8") as output:
+            print(f"original-name={config.original_name}", file=output)
+            print(f"name={config.name}", file=output)
+            if config.project_name is not None:
+                print(f"project-name={config.project_name}", file=output)
+                print(f"project-version={config.project_version}", file=output)
+
+    print("::endgroup::")
+    return config, 0
 
 
 def get_idedata(filename: Path) -> tuple[dict | None, int]:

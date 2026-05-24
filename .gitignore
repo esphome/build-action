@@ -4,3 +4,5 @@ venv
 *.json
 !/tests/*manifest-template.json
 config/
+__pycache__/
+*.pyc
