@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -12,14 +11,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
+from esphome.components.esp32 import VARIANT_FRIENDLY as ESP32_CHIP_FAMILIES
 
-ESP32_CHIP_FAMILIES = {
-    "ESP32": "ESP32",
-    "ESP32S2": "ESP32-S2",
-    "ESP32S3": "ESP32-S3",
-    "ESP32C3": "ESP32-C3",
-    "ESP32C6": "ESP32-C6",
-}
+try:
+    from esphome.components.rp2040 import VARIANT_FRIENDLY as RP2040_CHIP_FAMILIES
+except ImportError:
+    # ESPHome < the rp2040 variant PR — only RP2040 exists, no friendly-name dict.
+    RP2040_CHIP_FAMILIES = {"RP2040": "RP2040"}
 
 
 def parse_args(argv):
@@ -87,6 +85,9 @@ class Config:
 
     name: str
     platform: str
+    variant: str
+    chip_family: str | None
+    has_factory_part: bool
     original_name: str
     friendly_name: str | None = None
 
@@ -144,14 +145,35 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
             print(f"original-name={original_name}", file=output)
 
     platform = ""
-    if "esp32" in config:
-        platform = config["esp32"]["variant"].lower()
+    variant = ""
+    chip_family: str | None = None
+    has_factory_part = False
+    if esp32_config := config.get("esp32"):
+        # esp32c3 / esp32c6 / esp32s2 / esp32s3 / esp32p4 etc
+        platform = "esp32"
+        variant_upper = esp32_config["variant"]
+        variant = variant_upper.lower()
+        if variant_upper not in ESP32_CHIP_FAMILIES:
+            print(f"ERROR: Unsupported ESP32 variant: {variant_upper}")
+            return None, 1
+        chip_family = ESP32_CHIP_FAMILIES[variant_upper]
+        has_factory_part = True
     elif "esp8266" in config:
         platform = "esp8266"
-    elif "rp2040" in config:
+        variant = "esp8266"
+        chip_family = "ESP8266"
+        has_factory_part = True
+    elif rp2040_config := config.get("rp2040"):
+        # rp2040 / rp2350
         platform = "rp2040"
+        variant_upper = rp2040_config.get("variant", "RP2040")
+        variant = variant_upper.lower()
+        if variant_upper not in RP2040_CHIP_FAMILIES:
+            print(f"ERROR: Unsupported RP2040 variant: {variant_upper}")
+            return None, 1
+        chip_family = RP2040_CHIP_FAMILIES[variant_upper]
 
-    name = f"{original_name}-{platform}"
+    name = f"{original_name}-{variant}"
 
     if outputs_file:
         with open(outputs_file, "a", encoding="utf-8") as output:
@@ -171,6 +193,9 @@ def get_config(filename: Path, outputs_file: str | None) -> tuple[Config | None,
     return Config(
         name=name,
         platform=platform,
+        variant=variant,
+        chip_family=chip_family,
+        has_factory_part=has_factory_part,
         original_name=original_name,
         raw_config=config,
         friendly_name=friendly_name,
@@ -196,7 +221,7 @@ def get_idedata(filename: Path) -> tuple[dict | None, int]:
 
 
 def generate_manifest_part(
-    idedata: dict,
+    config: Config,
     factory_bin: Path,
     ota_bin: Path,
     release_summary: str | None,
@@ -204,34 +229,13 @@ def generate_manifest_part(
 ) -> tuple[dict | None, int]:
     """Generate the manifest."""
 
-    chip_family = None
-    define: str
-    has_factory_part = False
-    for define in idedata["defines"]:
-        if define == "USE_ESP8266":
-            chip_family = "ESP8266"
-            has_factory_part = True
-            break
-        if define == "USE_RP2040":
-            chip_family = "RP2040"
-            break
-        if m := re.match(r"USE_ESP32_VARIANT_(\w+)", define):
-            chip_family = m.group(1)
-            if chip_family not in ESP32_CHIP_FAMILIES:
-                print(f"ERROR: Unsupported chip family: {chip_family}")
-                return None, 1
-
-            chip_family = ESP32_CHIP_FAMILIES[chip_family]
-            has_factory_part = True
-            break
-
     with open(ota_bin, "rb") as f:
         ota_md5 = hashlib.md5(f.read()).hexdigest()
         f.seek(0)
         ota_sha256 = hashlib.sha256(f.read()).hexdigest()
 
     manifest = {
-        "chipFamily": chip_family,
+        "chipFamily": config.chip_family,
         "ota": {
             "path": ota_bin.name,
             "md5": ota_md5,
@@ -244,7 +248,7 @@ def generate_manifest_part(
     if release_url:
         manifest["ota"]["release_url"] = release_url
 
-    if has_factory_part:
+    if config.has_factory_part:
         with open(factory_bin, "rb") as f:
             factory_md5 = hashlib.md5(f.read()).hexdigest()
             f.seek(0)
@@ -311,7 +315,7 @@ def main(argv) -> int:
 
     print("::group::Generate manifest")
     manifest, rc = generate_manifest_part(
-        idedata,
+        config,
         dest_factory_bin,
         dest_ota_bin,
         args.release_summary,
