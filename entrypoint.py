@@ -76,14 +76,16 @@ def parse_substitutions(items: list[str]) -> tuple[list[str], int]:
 
 def compile_firmware(filename: Path, substitution_args: list[str]) -> int:
     """Compile the firmware."""
-    print("::group::Compile firmware")
+    print("::group::Compile firmware", flush=True)
     rc = subprocess.run(
         ["esphome"] + substitution_args + ["compile", filename],
         stdout=sys.stdout,
         stderr=sys.stderr,
         check=False,
     )
-    print("::endgroup::")
+    sys.stdout.flush()
+    sys.stderr.flush()
+    print("::endgroup::", flush=True)
     return rc.returncode
 
 
