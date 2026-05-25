@@ -60,21 +60,18 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-    - name: Build ESPHome image
+    - name: Pull ESPHome image
       shell: bash
       run: |-
-        echo "::group::Docker build"
+        echo "::group::Docker pull"
         trap 'echo "::endgroup::"' EXIT
-        docker buildx build \
-          --load \
-          --tag "esphome:${{ inputs.version }}" \
-          --build-arg "VERSION=${{ inputs.version }}" \
-          "${{ github.action_path }}"
+        docker pull "ghcr.io/esphome/esphome:${{ inputs.version }}"
     - name: Run container
       shell: bash
       id: build-step
+      env:
+        ESPHOME_VERSION: ${{ inputs.version }}
+        ENTRYPOINT_SRC: ${{ github.action_path }}/entrypoint.py
       run: |-
         summary=$(cat <<'ENDOFSUMMARY'
         ${{ inputs.release-summary }}
@@ -95,9 +92,12 @@ runs:
         docker run --rm \
           --workdir /github/workspace \
           -v "$(pwd)":"/github/workspace" -v "$HOME:$HOME" \
+          -v "${ENTRYPOINT_SRC}:/entrypoint.py:ro" \
+          --entrypoint /entrypoint.py \
           --user $(id -u):$(id -g) \
           -e HOME \
-          esphome:${{ inputs.version }} \
+          -e PLATFORMIO_GLOBALLIB_DIR= \
+          "ghcr.io/esphome/esphome:${ESPHOME_VERSION}" \
             ${{ inputs.yaml-file }} \
             "${substitution_args[@]}" \
             --release-summary "$summary" \
