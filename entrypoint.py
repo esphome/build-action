@@ -91,11 +91,12 @@ def compile_firmware(filename: Path, substitution_args: list[str]) -> int:
 
 def get_esphome_version(outputs_file: str | None) -> tuple[str, int]:
     """Get the ESPHome version."""
-    print("::group::Get ESPHome version")
+    print("::group::Get ESPHome version", flush=True)
     try:
         version = subprocess.check_output(["esphome", "version"])
     except subprocess.CalledProcessError as e:
-        print("::endgroup::")
+        sys.stderr.flush()
+        print("::endgroup::", flush=True)
         return "", e.returncode
 
     version = version.decode("utf-8").strip()
@@ -104,7 +105,8 @@ def get_esphome_version(outputs_file: str | None) -> tuple[str, int]:
     if outputs_file:
         with open(outputs_file, "a", encoding="utf-8") as output:
             print(f"esphome-version={version}", file=output)
-    print("::endgroup::")
+    sys.stderr.flush()
+    print("::endgroup::", flush=True)
     return version, 0
 
 
@@ -208,13 +210,15 @@ def parse_config(config_dict: dict) -> tuple[Config | None, int]:
 
 def get_config(filename: Path, outputs_file: str | None, substitution_args: list[str]) -> tuple[Config | None, int]:
     """Run `esphome config` and parse the validated YAML into a Config."""
-    print("::group::Get config")
+    print("::group::Get config", flush=True)
     try:
         raw = subprocess.check_output(
             ["esphome"] + substitution_args + ["config", filename],
             stderr=sys.stderr,
         )
     except subprocess.CalledProcessError as e:
+        sys.stderr.flush()
+        print("::endgroup::", flush=True)
         return None, e.returncode
 
     raw = raw.decode("utf-8")
@@ -225,7 +229,8 @@ def get_config(filename: Path, outputs_file: str | None, substitution_args: list
 
     config, rc = parse_config(config_dict)
     if rc != 0 or config is None:
-        print("::endgroup::")
+        sys.stderr.flush()
+        print("::endgroup::", flush=True)
         return None, rc
 
     if outputs_file:
@@ -236,24 +241,28 @@ def get_config(filename: Path, outputs_file: str | None, substitution_args: list
                 print(f"project-name={config.project_name}", file=output)
                 print(f"project-version={config.project_version}", file=output)
 
-    print("::endgroup::")
+    sys.stderr.flush()
+    print("::endgroup::", flush=True)
     return config, 0
 
 
 def get_idedata(filename: Path, substitution_args: list[str]) -> tuple[dict | None, int]:
     """Get the IDEData."""
-    print("::group::Get IDEData")
+    print("::group::Get IDEData", flush=True)
     try:
         idedata = subprocess.check_output(
             ["esphome"] + substitution_args + ["idedata", filename],
             stderr=sys.stderr,
         )
     except subprocess.CalledProcessError as e:
+        sys.stderr.flush()
+        print("::endgroup::", flush=True)
         return None, e.returncode
 
     data = json.loads(idedata.decode("utf-8"))
     print(json.dumps(data, indent=2))
-    print("::endgroup::")
+    sys.stderr.flush()
+    print("::endgroup::", flush=True)
     return data, 0
 
 
