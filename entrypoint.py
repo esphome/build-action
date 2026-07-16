@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -12,26 +14,12 @@ from pathlib import Path
 
 import yaml
 from esphome.components.esp32 import VARIANT_FRIENDLY as ESP32_CHIP_FAMILIES
+from esphome.components.libretiny.const import (
+    FAMILY_FRIENDLY as LIBRETINY_CHIP_FAMILIES,
+)
+from esphome.components.rp2 import VARIANT_FRIENDLY as RP2_CHIP_FAMILIES
 
-def _load_rp2_chip_families() -> dict[str, str]:
-    """Load the RP2 variant friendly-name dict across ESPHome versions."""
-    try:
-        # ESPHome >= the platform rename — rp2040 became rp2.
-        from esphome.components.rp2 import VARIANT_FRIENDLY
-    except ImportError:
-        try:
-            from esphome.components.rp2040 import VARIANT_FRIENDLY
-        except ImportError:
-            # ESPHome < the rp2040 variant PR — only RP2040 exists, no friendly-name dict.
-            return {"RP2040": "RP2040"}
-    return VARIANT_FRIENDLY
-
-
-RP2_CHIP_FAMILIES = _load_rp2_chip_families()
-
-# `rp2` is the canonical platform key; `rp2040` is its deprecated alias,
-# and the only key older ESPHome releases emit.
-RP2_PLATFORMS = ("rp2", "rp2040")
+LIBRETINY_PLATFORMS = ("bk72xx", "ln882x", "rtl87xx")
 
 
 def parse_args(argv):
@@ -124,6 +112,38 @@ def get_esphome_version(outputs_file: str | None) -> tuple[str, int]:
     return version, 0
 
 
+def check_esphome_version(version: str) -> int:
+    """Ensure the ESPHome version meets the action's minimum.
+
+    The minimum comes from the MINIMUM_ESPHOME_VERSION environment
+    variable, defined in action.yml (the single place it is set). The
+    check is skipped when the variable is absent, e.g. when running
+    outside the action.
+    """
+    minimum = os.environ.get("MINIMUM_ESPHOME_VERSION")
+    if not minimum:
+        return 0
+    minimum_match = re.match(r"(\d+)\.(\d+)\.(\d+)", minimum)
+    if not minimum_match:
+        print(f"::warning::Unable to parse minimum ESPHome version {minimum!r}")
+        return 0
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)", version)
+    if not match:
+        print(f"::warning::Unable to parse ESPHome version {version!r}")
+        return 0
+    if tuple(int(group) for group in match.groups()) < tuple(
+        int(group) for group in minimum_match.groups()
+    ):
+        print(
+            f"::error::ESPHome {version} is not supported by this version of "
+            f"the action; it requires at least ESPHome {minimum}. "
+            "Pin an older release of esphome/build-action to build with "
+            "older ESPHome versions."
+        )
+        return 1
+    return 0
+
+
 @dataclass
 class Config:
     """Configuration data."""
@@ -141,29 +161,81 @@ class Config:
 
     raw_config: dict | None = None
 
+    @property
+    def is_libretiny(self) -> bool:
+        """Is this a LibreTiny (bk72xx/ln882x/rtl87xx) platform?"""
+        return self.platform in LIBRETINY_PLATFORMS
+
+    @property
+    def is_host(self) -> bool:
+        """Is this the host platform (native executable)?"""
+        return self.platform == "host"
+
+    @property
+    def uses_uf2(self) -> bool:
+        """Is the flashable image a UF2 package rather than a .factory.bin?"""
+        return self.platform in ("rp2", "nrf52") or self.is_libretiny
+
+    @property
+    def ota_is_factory(self) -> bool:
+        """Is the OTA image the same file as the flashable image?"""
+        return self.is_libretiny
+
+    @property
+    def artifacts_optional(self) -> bool:
+        """May the factory/OTA images be absent from the build output?
+
+        nRF52 artifacts depend on the configured bootloader and OTA setup,
+        so any individual file may legitimately be missing.
+        """
+        return self.platform == "nrf52"
+
     def dest_factory_bin(self, file_base: Path) -> Path:
         """Get the destination factory binary path."""
-        if self.platform in RP2_PLATFORMS:
+        if self.is_host:
+            # The native executable, named after the device.
+            return file_base / self.name
+        if self.uses_uf2:
             return file_base / f"{self.name}.uf2"
         return file_base / f"{self.name}.factory.bin"
 
     def dest_ota_bin(self, file_base: Path) -> Path:
         """Get the destination OTA binary path."""
+        if self.ota_is_factory:
+            return self.dest_factory_bin(file_base)
         return file_base / f"{self.name}.ota.bin"
 
     def dest_elf(self, file_base: Path) -> Path:
         """Get the destination ELF path."""
         return file_base / f"{self.name}.elf"
 
-    def source_factory_bin(self, elf: Path) -> Path:
+    def source_factory_bin(self, build_dir: Path) -> Path:
         """Get the source factory binary path."""
-        if self.platform in RP2_PLATFORMS:
-            return elf.with_name("firmware.uf2")
-        return elf.with_name("firmware.factory.bin")
+        if self.is_host:
+            return build_dir / "program"
+        if self.platform == "nrf52":
+            return build_dir / "zephyr" / "zephyr.uf2"
+        if self.uses_uf2:
+            return build_dir / "firmware.uf2"
+        return build_dir / "firmware.factory.bin"
 
-    def source_ota_bin(self, elf: Path) -> Path:
+    def source_ota_bin(self, build_dir: Path) -> Path:
         """Get the source OTA binary path."""
-        return elf.with_name("firmware.ota.bin")
+        if self.ota_is_factory:
+            return self.source_factory_bin(build_dir)
+        if self.platform == "nrf52":
+            return build_dir / "zephyr" / "app_update.bin"
+        return build_dir / "firmware.ota.bin"
+
+    def extra_artifacts(self, build_dir: Path, file_base: Path) -> list[tuple[Path, Path]]:
+        """Get additional (source, destination) artifacts to copy if present."""
+        if self.platform == "nrf52":
+            return [
+                (build_dir / "firmware.zip", file_base / f"dfu-{self.name}.zip"),
+                (build_dir / "zephyr" / "merged.hex", file_base / f"{self.name}.hex"),
+                (build_dir / "zephyr" / "zephyr.hex", file_base / f"{self.name}.hex"),
+            ]
+        return []
 
 
 def parse_config(config_dict: dict) -> tuple[Config | None, int]:
@@ -190,16 +262,38 @@ def parse_config(config_dict: dict) -> tuple[Config | None, int]:
         variant = "esp8266"
         chip_family = "ESP8266"
         has_factory_part = True
-    elif rp2_key := next((key for key in RP2_PLATFORMS if key in config_dict), None):
-        # rp2040 / rp2350 — new ESPHome emits `rp2`, older releases `rp2040`
-        platform = rp2_key
-        rp2_config = config_dict[rp2_key]
-        variant_upper = rp2_config.get("variant", "RP2040")
+    elif rp2_config := config_dict.get("rp2"):
+        # rp2040 / rp2350
+        platform = "rp2"
+        variant_upper = rp2_config["variant"]
         variant = variant_upper.lower()
         if variant_upper not in RP2_CHIP_FAMILIES:
             print(f"ERROR: Unsupported RP2 variant: {variant_upper}")
             return None, 1
         chip_family = RP2_CHIP_FAMILIES[variant_upper]
+    elif libretiny_platform := next(
+        (key for key in LIBRETINY_PLATFORMS if key in config_dict), None
+    ):
+        # bk7231n / bk7231t / ln882h / rtl8710b etc
+        platform = libretiny_platform
+        family = config_dict[libretiny_platform]["family"]
+        variant = family.lower()
+        if family not in LIBRETINY_CHIP_FAMILIES:
+            print(f"ERROR: Unsupported LibreTiny family: {family}")
+            return None, 1
+        chip_family = LIBRETINY_CHIP_FAMILIES[family]
+    elif "nrf52" in config_dict:
+        platform = "nrf52"
+        variant = "nrf52"
+        chip_family = "NRF52"
+    elif "host" in config_dict:
+        # A native executable for the build machine's OS/arch — no
+        # flashable firmware and no manifest.
+        platform = "host"
+        variant = "host"
+    else:
+        print("ERROR: Unable to detect the target platform from the configuration")
+        return None, 1
 
     name = f"{original_name}-{variant}"
 
@@ -281,35 +375,69 @@ def get_idedata(filename: Path, substitution_args: list[str]) -> tuple[dict | No
     return data, 0
 
 
+def get_build_dir_from_storage(filename: Path) -> tuple[Path | None, int]:
+    """Get the build output directory from the ESPHome storage file.
+
+    `esphome idedata` only supports the PlatformIO and ESP-IDF toolchains,
+    so for Zephyr-based platforms (nrf52) the build output directory is
+    located via the storage JSON that `esphome compile` writes.
+    """
+    print("::group::Get build directory", flush=True)
+    data_dir = Path(
+        os.environ.get("ESPHOME_DATA_DIR", filename.parent / ".esphome")
+    )
+    storage_file = data_dir / "storage" / f"{filename.name}.json"
+    try:
+        with open(storage_file, encoding="utf-8") as f:
+            storage = json.load(f)
+    except (OSError, ValueError) as e:
+        print(f"::error::Unable to read storage file {storage_file}: {e}")
+        print("::endgroup::", flush=True)
+        return None, 1
+
+    firmware_bin_path = storage.get("firmware_bin_path")
+    if not firmware_bin_path:
+        print(f"::error::No firmware_bin_path found in {storage_file}")
+        print("::endgroup::", flush=True)
+        return None, 1
+
+    build_dir = Path(firmware_bin_path).parent
+    print(f"Build directory: {build_dir}")
+    print("::endgroup::", flush=True)
+    return build_dir, 0
+
+
 def generate_manifest_part(
     config: Config,
-    factory_bin: Path,
-    ota_bin: Path,
+    factory_bin: Path | None,
+    ota_bin: Path | None,
     release_summary: str | None,
     release_url: str | None,
 ) -> tuple[dict | None, int]:
     """Generate the manifest."""
 
-    with open(ota_bin, "rb") as f:
-        ota_md5 = hashlib.md5(f.read()).hexdigest()
-        f.seek(0)
-        ota_sha256 = hashlib.sha256(f.read()).hexdigest()
-
-    manifest = {
+    manifest: dict = {
         "chipFamily": config.chip_family,
-        "ota": {
+    }
+
+    if ota_bin is not None:
+        with open(ota_bin, "rb") as f:
+            ota_md5 = hashlib.md5(f.read()).hexdigest()
+            f.seek(0)
+            ota_sha256 = hashlib.sha256(f.read()).hexdigest()
+
+        manifest["ota"] = {
             "path": ota_bin.name,
             "md5": ota_md5,
             "sha256": ota_sha256,
-        },
-    }
+        }
 
-    if release_summary:
-        manifest["ota"]["summary"] = release_summary
-    if release_url:
-        manifest["ota"]["release_url"] = release_url
+        if release_summary:
+            manifest["ota"]["summary"] = release_summary
+        if release_url:
+            manifest["ota"]["release_url"] = release_url
 
-    if config.has_factory_part:
+    if config.has_factory_part and factory_bin is not None:
         with open(factory_bin, "rb") as f:
             factory_md5 = hashlib.md5(f.read()).hexdigest()
             f.seek(0)
@@ -336,11 +464,14 @@ def main(argv) -> int:
     if rc != 0:
         return rc
 
-    if (rc := compile_firmware(filename, substitution_args)) != 0:
-        return rc
-
     esphome_version, rc = get_esphome_version(args.outputs_file)
     if rc != 0:
+        return rc
+
+    if (rc := check_esphome_version(esphome_version)) != 0:
+        return rc
+
+    if (rc := compile_firmware(filename, substitution_args)) != 0:
         return rc
 
     config, rc = get_config(filename, args.outputs_file, substitution_args)
@@ -351,32 +482,87 @@ def main(argv) -> int:
 
     file_base = Path(config.name)
 
-    idedata, rc = get_idedata(filename, substitution_args)
-    if rc != 0:
-        return rc
+    elf: Path | None
+    if config.platform == "nrf52":
+        # `esphome idedata` does not support the Zephyr toolchain.
+        build_dir, rc = get_build_dir_from_storage(filename)
+        if rc != 0 or build_dir is None:
+            return rc
+        elf = next(
+            (
+                candidate
+                for candidate in (
+                    build_dir / "zephyr" / "zephyr.elf",
+                    build_dir / "zephyr" / "zephyr" / "zephyr.elf",
+                )
+                if candidate.is_file()
+            ),
+            None,
+        )
+    else:
+        idedata, rc = get_idedata(filename, substitution_args)
+        if rc != 0:
+            return rc
+        elf = Path(idedata["prog_path"])
+        build_dir = elf.parent
 
     print("::group::Copy firmware file(s) to folder")
 
-    elf = Path(idedata["prog_path"])
-
-    source_factory_bin = config.source_factory_bin(elf)
-    dest_factory_bin = config.dest_factory_bin(file_base)
-
-    source_ota_bin = config.source_ota_bin(elf)
-    dest_ota_bin = config.dest_ota_bin(file_base)
-
-    dest_elf = config.dest_elf(file_base)
-
     file_base.mkdir(parents=True, exist_ok=True)
 
-    shutil.copyfile(source_factory_bin, dest_factory_bin)
-    print("Copied factory binary to:", dest_factory_bin)
-    shutil.copyfile(source_ota_bin, dest_ota_bin)
-    print("Copied OTA binary to:", dest_ota_bin)
-    shutil.copyfile(elf, dest_elf)
-    print("Copied ELF file to:", dest_elf)
+    dest_factory_bin: Path | None = None
+    source_factory_bin = config.source_factory_bin(build_dir)
+    if source_factory_bin.is_file():
+        dest_factory_bin = config.dest_factory_bin(file_base)
+        # shutil.copy preserves the mode — the host platform's native
+        # executable must keep its executable bit.
+        shutil.copy(source_factory_bin, dest_factory_bin)
+        print("Copied factory binary to:", dest_factory_bin)
+    elif not config.artifacts_optional:
+        print(f"::error::Factory binary {source_factory_bin} does not exist")
+        print("::endgroup::")
+        return 1
+
+    dest_ota_bin: Path | None = None
+    if config.is_host:
+        pass  # a native executable has no OTA image
+    elif config.ota_is_factory:
+        dest_ota_bin = dest_factory_bin
+    else:
+        source_ota_bin = config.source_ota_bin(build_dir)
+        if source_ota_bin.is_file():
+            dest_ota_bin = config.dest_ota_bin(file_base)
+            shutil.copyfile(source_ota_bin, dest_ota_bin)
+            print("Copied OTA binary to:", dest_ota_bin)
+        elif not config.artifacts_optional:
+            print(f"::error::OTA binary {source_ota_bin} does not exist")
+            print("::endgroup::")
+            return 1
+
+    extra_copied: list[Path] = []
+    for source, dest in config.extra_artifacts(build_dir, file_base):
+        if source.is_file() and dest not in extra_copied:
+            shutil.copyfile(source, dest)
+            print("Copied extra artifact to:", dest)
+            extra_copied.append(dest)
+
+    if dest_factory_bin is None and dest_ota_bin is None and not extra_copied:
+        print(f"::error::No firmware artifacts found in {build_dir}")
+        print("::endgroup::")
+        return 1
+
+    if elf is not None and elf.is_file() and not config.is_host:
+        # For host the "ELF" is the native executable itself,
+        # already copied above.
+        dest_elf = config.dest_elf(file_base)
+        shutil.copyfile(elf, dest_elf)
+        print("Copied ELF file to:", dest_elf)
 
     print("::endgroup::")
+
+    if config.is_host:
+        # A native executable is not flashable — no manifest.
+        return 0
 
     print("::group::Generate manifest")
     manifest, rc = generate_manifest_part(
