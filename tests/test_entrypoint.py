@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -71,7 +72,49 @@ class ParseConfigEsp8266Tests(unittest.TestCase):
         self.assertEqual(config.name, "demo-esp8266")
 
 
+class ParseConfigRp2Tests(unittest.TestCase):
+    def test_rp2_explicit_variant(self):
+        config_dict = {
+            **_esphome_block(),
+            "rp2": {"variant": "RP2040", "board": "rpipico"},
+        }
+        config, rc = entrypoint.parse_config(config_dict)
+        self.assertEqual(rc, 0)
+        assert config is not None
+        self.assertEqual(config.platform, "rp2")
+        self.assertEqual(config.variant, "rp2040")
+        self.assertEqual(config.chip_family, "RP2040")
+        self.assertFalse(config.has_factory_part)
+        self.assertEqual(config.name, "demo-rp2040")
+
+    @mock.patch.dict(entrypoint.RP2_CHIP_FAMILIES, {"RP2350": "RP2350"}, clear=False)
+    def test_rp2_rp2350_variant(self):
+        config_dict = {
+            **_esphome_block(),
+            "rp2": {"variant": "RP2350", "board": "rpipico2"},
+        }
+        config, rc = entrypoint.parse_config(config_dict)
+        self.assertEqual(rc, 0)
+        assert config is not None
+        self.assertEqual(config.platform, "rp2")
+        self.assertEqual(config.variant, "rp2350")
+        self.assertEqual(config.chip_family, "RP2350")
+        self.assertFalse(config.has_factory_part)
+        self.assertEqual(config.name, "demo-rp2350")
+
+    def test_unsupported_rp2_variant_returns_error(self):
+        config_dict = {
+            **_esphome_block(),
+            "rp2": {"variant": "RP9999", "board": "made-up"},
+        }
+        config, rc = entrypoint.parse_config(config_dict)
+        self.assertEqual(rc, 1)
+        self.assertIsNone(config)
+
+
 class ParseConfigRp2040Tests(unittest.TestCase):
+    # `rp2040` is the deprecated alias of the `rp2` platform key, and the
+    # only key older ESPHome releases emit — it must keep working.
     def test_rp2040_explicit_variant(self):
         config_dict = {
             **_esphome_block(),
@@ -97,9 +140,7 @@ class ParseConfigRp2040Tests(unittest.TestCase):
         self.assertEqual(config.variant, "rp2040")
         self.assertEqual(config.chip_family, "RP2040")
 
-    @mock.patch.dict(
-        entrypoint.RP2040_CHIP_FAMILIES, {"RP2350": "RP2350"}, clear=False
-    )
+    @mock.patch.dict(entrypoint.RP2_CHIP_FAMILIES, {"RP2350": "RP2350"}, clear=False)
     def test_rp2350_variant(self):
         config_dict = {
             **_esphome_block(),
@@ -122,6 +163,58 @@ class ParseConfigRp2040Tests(unittest.TestCase):
         config, rc = entrypoint.parse_config(config_dict)
         self.assertEqual(rc, 1)
         self.assertIsNone(config)
+
+
+class ParseConfigNoPlatformTests(unittest.TestCase):
+    def test_config_without_platform_key(self):
+        config, rc = entrypoint.parse_config(_esphome_block())
+        self.assertEqual(rc, 0)
+        assert config is not None
+        self.assertEqual(config.platform, "")
+        self.assertEqual(config.variant, "")
+        self.assertIsNone(config.chip_family)
+        self.assertFalse(config.has_factory_part)
+        self.assertEqual(config.name, "demo-")
+
+
+class LoadRp2ChipFamiliesTests(unittest.TestCase):
+    # A `None` entry in sys.modules makes `import` raise ImportError for
+    # that module, which is how the missing-component cases are simulated.
+    @staticmethod
+    def _fake_component(variants: dict[str, str]) -> types.ModuleType:
+        module = types.ModuleType("fake_component")
+        module.VARIANT_FRIENDLY = variants
+        return module
+
+    def test_rp2_component_preferred(self):
+        variants = {"RP2040": "RP2040", "RP2350": "RP2350"}
+        with mock.patch.dict(
+            sys.modules, {"esphome.components.rp2": self._fake_component(variants)}
+        ):
+            self.assertEqual(entrypoint._load_rp2_chip_families(), variants)
+
+    def test_falls_back_to_rp2040_component(self):
+        variants = {"RP2040": "RP2040"}
+        with mock.patch.dict(
+            sys.modules,
+            {
+                "esphome.components.rp2": None,
+                "esphome.components.rp2040": self._fake_component(variants),
+            },
+        ):
+            self.assertEqual(entrypoint._load_rp2_chip_families(), variants)
+
+    def test_falls_back_to_static_dict_when_both_missing(self):
+        with mock.patch.dict(
+            sys.modules,
+            {
+                "esphome.components.rp2": None,
+                "esphome.components.rp2040": None,
+            },
+        ):
+            self.assertEqual(
+                entrypoint._load_rp2_chip_families(), {"RP2040": "RP2040"}
+            )
 
 
 class ParseConfigMetadataTests(unittest.TestCase):
@@ -226,6 +319,16 @@ class ConfigPathTests(unittest.TestCase):
             chip_family=None,
             has_factory_part=False,
             original_name="demo",
+        )
+
+    def test_rp2_uses_uf2(self):
+        config = self._make("rp2", "rp2040")
+        self.assertEqual(
+            config.dest_factory_bin(Path("out")), Path("out/demo-rp2040.uf2")
+        )
+        self.assertEqual(
+            config.source_factory_bin(Path("/build/firmware.elf")),
+            Path("/build/firmware.uf2"),
         )
 
     def test_rp2040_uses_uf2(self):

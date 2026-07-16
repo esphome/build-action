@@ -13,11 +13,25 @@ from pathlib import Path
 import yaml
 from esphome.components.esp32 import VARIANT_FRIENDLY as ESP32_CHIP_FAMILIES
 
-try:
-    from esphome.components.rp2040 import VARIANT_FRIENDLY as RP2040_CHIP_FAMILIES
-except ImportError:
-    # ESPHome < the rp2040 variant PR — only RP2040 exists, no friendly-name dict.
-    RP2040_CHIP_FAMILIES = {"RP2040": "RP2040"}
+def _load_rp2_chip_families() -> dict[str, str]:
+    """Load the RP2 variant friendly-name dict across ESPHome versions."""
+    try:
+        # ESPHome >= the platform rename — rp2040 became rp2.
+        from esphome.components.rp2 import VARIANT_FRIENDLY
+    except ImportError:
+        try:
+            from esphome.components.rp2040 import VARIANT_FRIENDLY
+        except ImportError:
+            # ESPHome < the rp2040 variant PR — only RP2040 exists, no friendly-name dict.
+            return {"RP2040": "RP2040"}
+    return VARIANT_FRIENDLY
+
+
+RP2_CHIP_FAMILIES = _load_rp2_chip_families()
+
+# `rp2` is the canonical platform key; `rp2040` is its deprecated alias,
+# and the only key older ESPHome releases emit.
+RP2_PLATFORMS = ("rp2", "rp2040")
 
 
 def parse_args(argv):
@@ -129,7 +143,7 @@ class Config:
 
     def dest_factory_bin(self, file_base: Path) -> Path:
         """Get the destination factory binary path."""
-        if self.platform == "rp2040":
+        if self.platform in RP2_PLATFORMS:
             return file_base / f"{self.name}.uf2"
         return file_base / f"{self.name}.factory.bin"
 
@@ -143,7 +157,7 @@ class Config:
 
     def source_factory_bin(self, elf: Path) -> Path:
         """Get the source factory binary path."""
-        if self.platform == "rp2040":
+        if self.platform in RP2_PLATFORMS:
             return elf.with_name("firmware.uf2")
         return elf.with_name("firmware.factory.bin")
 
@@ -176,15 +190,16 @@ def parse_config(config_dict: dict) -> tuple[Config | None, int]:
         variant = "esp8266"
         chip_family = "ESP8266"
         has_factory_part = True
-    elif rp2040_config := config_dict.get("rp2040"):
-        # rp2040 / rp2350
-        platform = "rp2040"
-        variant_upper = rp2040_config.get("variant", "RP2040")
+    elif rp2_key := next((key for key in RP2_PLATFORMS if key in config_dict), None):
+        # rp2040 / rp2350 — new ESPHome emits `rp2`, older releases `rp2040`
+        platform = rp2_key
+        rp2_config = config_dict[rp2_key]
+        variant_upper = rp2_config.get("variant", "RP2040")
         variant = variant_upper.lower()
-        if variant_upper not in RP2040_CHIP_FAMILIES:
-            print(f"ERROR: Unsupported RP2040 variant: {variant_upper}")
+        if variant_upper not in RP2_CHIP_FAMILIES:
+            print(f"ERROR: Unsupported RP2 variant: {variant_upper}")
             return None, 1
-        chip_family = RP2040_CHIP_FAMILIES[variant_upper]
+        chip_family = RP2_CHIP_FAMILIES[variant_upper]
 
     name = f"{original_name}-{variant}"
 
