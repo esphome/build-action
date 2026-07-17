@@ -11,18 +11,19 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, NotRequired, TypedDict
 
 import yaml
-from esphome.components.esp32 import VARIANT_FRIENDLY as ESP32_CHIP_FAMILIES
+from esphome.components.esp32.const import VARIANT_FRIENDLY as ESP32_CHIP_FAMILIES
 from esphome.components.libretiny.const import (
     FAMILY_FRIENDLY as LIBRETINY_CHIP_FAMILIES,
 )
-from esphome.components.rp2 import VARIANT_FRIENDLY as RP2_CHIP_FAMILIES
+from esphome.components.rp2.const import VARIANT_FRIENDLY as RP2_CHIP_FAMILIES
 
-LIBRETINY_PLATFORMS = ("bk72xx", "ln882x", "rtl87xx")
+LIBRETINY_PLATFORMS: tuple[str, ...] = ("bk72xx", "ln882x", "rtl87xx")
 
 
-def parse_args(argv):
+def parse_args(argv: list[str]) -> argparse.Namespace:
     """Parse the arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument("configuration", help="Path to the configuration file")
@@ -95,13 +96,13 @@ def get_esphome_version(outputs_file: str | None) -> tuple[str, int]:
     """Get the ESPHome version."""
     print("::group::Get ESPHome version", flush=True)
     try:
-        version = subprocess.check_output(["esphome", "version"])
+        raw_version = subprocess.check_output(["esphome", "version"])
     except subprocess.CalledProcessError as e:
         sys.stderr.flush()
         print("::endgroup::", flush=True)
         return "", e.returncode
 
-    version = version.decode("utf-8").strip()
+    version = raw_version.decode("utf-8").strip()
     print(version)
     version = version.split(" ")[1].strip()
     if outputs_file:
@@ -159,7 +160,7 @@ class Config:
     project_name: str | None = None
     project_version: str | None = None
 
-    raw_config: dict | None = None
+    raw_config: dict[str, Any] | None = None
 
     @property
     def is_libretiny(self) -> bool:
@@ -242,7 +243,7 @@ class Config:
         return []
 
 
-def parse_config(config_dict: dict) -> tuple[Config | None, int]:
+def parse_config(config_dict: dict[str, Any]) -> tuple[Config | None, int]:
     """Parse a validated ESPHome config dict into a Config object."""
     original_name = config_dict["esphome"]["name"]
     friendly_name = config_dict["esphome"].get("friendly_name")
@@ -325,7 +326,7 @@ def get_config(filename: Path, outputs_file: str | None, substitution_args: list
     """Run `esphome config` and parse the validated YAML into a Config."""
     print("::group::Get config", flush=True)
     try:
-        raw = subprocess.check_output(
+        raw_config = subprocess.check_output(
             ["esphome"] + substitution_args + ["config", filename],
             stderr=sys.stderr,
         )
@@ -334,11 +335,11 @@ def get_config(filename: Path, outputs_file: str | None, substitution_args: list
         print("::endgroup::", flush=True)
         return None, e.returncode
 
-    raw = raw.decode("utf-8")
+    raw = raw_config.decode("utf-8")
     print(raw)
 
     yaml.add_multi_constructor("", lambda _, t, n: t + " " + n.value)
-    config_dict = yaml.load(raw, Loader=yaml.FullLoader)
+    config_dict: dict[str, Any] = yaml.load(raw, Loader=yaml.FullLoader)
 
     config, rc = parse_config(config_dict)
     if rc != 0 or config is None:
@@ -359,11 +360,11 @@ def get_config(filename: Path, outputs_file: str | None, substitution_args: list
     return config, 0
 
 
-def get_idedata(filename: Path, substitution_args: list[str]) -> tuple[dict | None, int]:
+def get_idedata(filename: Path, substitution_args: list[str]) -> tuple[dict[str, Any] | None, int]:
     """Get the IDEData."""
     print("::group::Get IDEData", flush=True)
     try:
-        idedata = subprocess.check_output(
+        output = subprocess.check_output(
             ["esphome"] + substitution_args + ["idedata", filename],
             stderr=sys.stderr,
         )
@@ -372,7 +373,7 @@ def get_idedata(filename: Path, substitution_args: list[str]) -> tuple[dict | No
         print("::endgroup::", flush=True)
         return None, e.returncode
 
-    data = json.loads(idedata.decode("utf-8"))
+    data: dict[str, Any] = json.loads(output.decode("utf-8"))
     print(json.dumps(data, indent=2))
     sys.stderr.flush()
     print("::endgroup::", flush=True)
@@ -393,7 +394,7 @@ def get_build_dir_from_storage(filename: Path) -> tuple[Path | None, int]:
     storage_file = data_dir / "storage" / f"{filename.name}.json"
     try:
         with open(storage_file, encoding="utf-8") as f:
-            storage = json.load(f)
+            storage: dict[str, Any] = json.load(f)
     except (OSError, ValueError) as e:
         print(f"::error::Unable to read storage file {storage_file}: {e}")
         print("::endgroup::", flush=True)
@@ -411,16 +412,53 @@ def get_build_dir_from_storage(filename: Path) -> tuple[Path | None, int]:
     return build_dir, 0
 
 
+class ManifestOta(TypedDict):
+    """The esp-web-tools manifest OTA section."""
+
+    path: str
+    md5: str
+    sha256: str
+    summary: NotRequired[str]
+    release_url: NotRequired[str]
+
+
+class ManifestPart(TypedDict):
+    """A flashable part in the esp-web-tools manifest."""
+
+    path: str
+    offset: int
+    md5: str
+    sha256: str
+
+
+class BuildManifest(TypedDict):
+    """A single build entry in the esp-web-tools manifest."""
+
+    chipFamily: str | None
+    ota: NotRequired[ManifestOta]
+    parts: NotRequired[list[ManifestPart]]
+
+
+class CompleteManifest(TypedDict):
+    """A complete esp-web-tools manifest."""
+
+    name: str
+    version: str
+    home_assistant_domain: str
+    new_install_prompt_erase: bool
+    builds: list[BuildManifest]
+
+
 def generate_manifest_part(
     config: Config,
     factory_bin: Path | None,
     ota_bin: Path | None,
     release_summary: str | None,
     release_url: str | None,
-) -> tuple[dict | None, int]:
+) -> tuple[BuildManifest, int]:
     """Generate the manifest."""
 
-    manifest: dict = {
+    manifest: BuildManifest = {
         "chipFamily": config.chip_family,
     }
 
@@ -458,7 +496,7 @@ def generate_manifest_part(
     return manifest, 0
 
 
-def main(argv) -> int:
+def main(argv: list[str]) -> int:
     """Main entrypoint."""
     args = parse_args(argv)
 
@@ -507,6 +545,7 @@ def main(argv) -> int:
         idedata, rc = get_idedata(filename, substitution_args)
         if rc != 0:
             return rc
+        assert idedata is not None
         elf = Path(idedata["prog_path"])
         build_dir = elf.parent
 
@@ -563,16 +602,15 @@ def main(argv) -> int:
     print("::endgroup::")
 
     print("::group::Generate manifest")
-    manifest, rc = generate_manifest_part(
+    build_manifest, _ = generate_manifest_part(
         config,
         dest_factory_bin,
         dest_ota_bin,
         args.release_summary,
         args.release_url,
     )
-    if rc != 0:
-        return rc
 
+    manifest: BuildManifest | CompleteManifest = build_manifest
     if args.complete_manifest:
         manifest = {
             "name": config.project_name or config.friendly_name or config.original_name,
@@ -580,7 +618,7 @@ def main(argv) -> int:
             "home_assistant_domain": "esphome",
             "new_install_prompt_erase": False,
             "builds": [
-                manifest,
+                build_manifest,
             ],
         }
 
@@ -595,5 +633,5 @@ def main(argv) -> int:
     return 0
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     sys.exit(main(sys.argv))

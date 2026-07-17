@@ -3,11 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -644,6 +647,235 @@ class GetBuildDirFromStorageTests(unittest.TestCase):
         build_dir, rc = entrypoint.get_build_dir_from_storage(self.filename)
         self.assertEqual(rc, 1)
         self.assertIsNone(build_dir)
+
+
+class CompileFirmwareTests(unittest.TestCase):
+    def _run(self, returncode: int) -> tuple[int, mock.MagicMock]:
+        run_mock = mock.MagicMock(return_value=mock.Mock(returncode=returncode))
+        with mock.patch.object(entrypoint.subprocess, "run", run_mock):
+            rc = entrypoint.compile_firmware(
+                Path("demo.yaml"), ["-s", "key", "value"]
+            )
+        return rc, run_mock
+
+    def test_success(self) -> None:
+        rc, run_mock = self._run(0)
+        self.assertEqual(rc, 0)
+        self.assertEqual(
+            run_mock.call_args.args[0],
+            ["esphome", "-s", "key", "value", "compile", Path("demo.yaml")],
+        )
+
+    def test_failure_propagates_returncode(self) -> None:
+        rc, _ = self._run(2)
+        self.assertEqual(rc, 2)
+
+
+class GetEsphomeVersionTests(unittest.TestCase):
+    def test_version_parsed(self) -> None:
+        with mock.patch.object(
+            entrypoint.subprocess,
+            "check_output",
+            return_value=b"Version: 2026.7.0\n",
+        ) as check_output:
+            version, rc = entrypoint.get_esphome_version(None)
+        self.assertEqual(rc, 0)
+        self.assertEqual(version, "2026.7.0")
+        check_output.assert_called_once_with(["esphome", "version"])
+
+    def test_version_appended_to_outputs_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            outputs_file = Path(tmp) / "outputs"
+            outputs_file.write_text("existing=1\n", encoding="utf-8")
+            with mock.patch.object(
+                entrypoint.subprocess,
+                "check_output",
+                return_value=b"Version: 2026.7.0\n",
+            ):
+                version, rc = entrypoint.get_esphome_version(str(outputs_file))
+            self.assertEqual(rc, 0)
+            self.assertEqual(version, "2026.7.0")
+            self.assertEqual(
+                outputs_file.read_text(encoding="utf-8"),
+                "existing=1\nesphome-version=2026.7.0\n",
+            )
+
+    def test_failure_returns_returncode(self) -> None:
+        error = subprocess.CalledProcessError(3, ["esphome", "version"])
+        with mock.patch.object(
+            entrypoint.subprocess, "check_output", side_effect=error
+        ):
+            version, rc = entrypoint.get_esphome_version(None)
+        self.assertEqual(rc, 3)
+        self.assertEqual(version, "")
+
+
+class GetConfigTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.outputs_file = Path(self._tmp.name) / "outputs"
+
+    @staticmethod
+    def _patch_check_output(config_dict: dict) -> mock._patch:
+        return mock.patch.object(
+            entrypoint.subprocess,
+            "check_output",
+            return_value=yaml.dump(config_dict).encode("utf-8"),
+        )
+
+    @staticmethod
+    def _esp32_config_dict(**esphome_extra: object) -> dict:
+        return {
+            **_esphome_block(**esphome_extra),
+            "esp32": {"variant": "ESP32", "board": "esp32dev"},
+        }
+
+    def test_config_with_project_writes_outputs(self) -> None:
+        config_dict = self._esp32_config_dict(
+            project={"name": "vendor.widget", "version": "1.2.3"}
+        )
+        with self._patch_check_output(config_dict) as check_output:
+            config, rc = entrypoint.get_config(
+                Path("demo.yaml"), str(self.outputs_file), ["-s", "key", "value"]
+            )
+        self.assertEqual(rc, 0)
+        assert config is not None
+        self.assertEqual(config.name, "demo-esp32")
+        self.assertEqual(config.project_name, "vendor.widget")
+        check_output.assert_called_once_with(
+            ["esphome", "-s", "key", "value", "config", Path("demo.yaml")],
+            stderr=mock.ANY,
+        )
+        self.assertEqual(
+            self.outputs_file.read_text(encoding="utf-8"),
+            "original-name=demo\n"
+            "name=demo-esp32\n"
+            "project-name=vendor.widget\n"
+            "project-version=1.2.3\n",
+        )
+
+    def test_config_without_project_omits_project_outputs(self) -> None:
+        with self._patch_check_output(self._esp32_config_dict()):
+            config, rc = entrypoint.get_config(
+                Path("demo.yaml"), str(self.outputs_file), []
+            )
+        self.assertEqual(rc, 0)
+        assert config is not None
+        self.assertEqual(
+            self.outputs_file.read_text(encoding="utf-8"),
+            "original-name=demo\nname=demo-esp32\n",
+        )
+
+    def test_no_outputs_file(self) -> None:
+        with self._patch_check_output(self._esp32_config_dict()):
+            config, rc = entrypoint.get_config(Path("demo.yaml"), None, [])
+        self.assertEqual(rc, 0)
+        assert config is not None
+        self.assertFalse(self.outputs_file.exists())
+
+    def test_failure_returns_returncode(self) -> None:
+        error = subprocess.CalledProcessError(4, ["esphome", "config"])
+        with mock.patch.object(
+            entrypoint.subprocess, "check_output", side_effect=error
+        ):
+            config, rc = entrypoint.get_config(
+                Path("demo.yaml"), str(self.outputs_file), []
+            )
+        self.assertEqual(rc, 4)
+        self.assertIsNone(config)
+
+    def test_unknown_platform_propagates_parse_error(self) -> None:
+        with self._patch_check_output(_esphome_block()):
+            config, rc = entrypoint.get_config(
+                Path("demo.yaml"), str(self.outputs_file), []
+            )
+        self.assertEqual(rc, 1)
+        self.assertIsNone(config)
+        self.assertFalse(self.outputs_file.exists())
+
+
+class GetIdedataTests(unittest.TestCase):
+    def test_idedata_parsed(self) -> None:
+        data = {"prog_path": "/build/firmware.elf"}
+        with mock.patch.object(
+            entrypoint.subprocess,
+            "check_output",
+            return_value=json.dumps(data).encode("utf-8"),
+        ) as check_output:
+            idedata, rc = entrypoint.get_idedata(
+                Path("demo.yaml"), ["-s", "key", "value"]
+            )
+        self.assertEqual(rc, 0)
+        self.assertEqual(idedata, data)
+        check_output.assert_called_once_with(
+            ["esphome", "-s", "key", "value", "idedata", Path("demo.yaml")],
+            stderr=mock.ANY,
+        )
+
+    def test_failure_returns_returncode(self) -> None:
+        error = subprocess.CalledProcessError(5, ["esphome", "idedata"])
+        with mock.patch.object(
+            entrypoint.subprocess, "check_output", side_effect=error
+        ):
+            idedata, rc = entrypoint.get_idedata(Path("demo.yaml"), [])
+        self.assertEqual(rc, 5)
+        self.assertIsNone(idedata)
+
+
+class MainEarlyReturnTests(unittest.TestCase):
+    """main() must propagate failure return codes from each helper."""
+
+    def setUp(self) -> None:
+        patcher = mock.patch.dict(os.environ)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        os.environ["MINIMUM_ESPHOME_VERSION"] = "2026.7.0"
+
+    def test_invalid_substitution_fails_before_version_check(self) -> None:
+        version_mock = mock.MagicMock(return_value=("2026.7.0", 0))
+        with mock.patch.object(entrypoint, "get_esphome_version", version_mock):
+            rc = entrypoint.main(
+                ["entrypoint.py", "demo.yaml", "--substitution", "noequals"]
+            )
+        self.assertEqual(rc, 2)
+        version_mock.assert_not_called()
+
+    def test_version_failure_propagates(self) -> None:
+        compile_mock = mock.MagicMock(return_value=0)
+        with (
+            mock.patch.object(
+                entrypoint, "get_esphome_version", return_value=("", 4)
+            ),
+            mock.patch.object(entrypoint, "compile_firmware", compile_mock),
+        ):
+            rc = entrypoint.main(["entrypoint.py", "demo.yaml"])
+        self.assertEqual(rc, 4)
+        compile_mock.assert_not_called()
+
+    def test_compile_failure_propagates(self) -> None:
+        get_config_mock = mock.MagicMock(return_value=(None, 0))
+        with (
+            mock.patch.object(
+                entrypoint, "get_esphome_version", return_value=("2026.7.0", 0)
+            ),
+            mock.patch.object(entrypoint, "compile_firmware", return_value=5),
+            mock.patch.object(entrypoint, "get_config", get_config_mock),
+        ):
+            rc = entrypoint.main(["entrypoint.py", "demo.yaml"])
+        self.assertEqual(rc, 5)
+        get_config_mock.assert_not_called()
+
+    def test_get_config_failure_propagates(self) -> None:
+        with (
+            mock.patch.object(
+                entrypoint, "get_esphome_version", return_value=("2026.7.0", 0)
+            ),
+            mock.patch.object(entrypoint, "compile_firmware", return_value=0),
+            mock.patch.object(entrypoint, "get_config", return_value=(None, 6)),
+        ):
+            rc = entrypoint.main(["entrypoint.py", "demo.yaml"])
+        self.assertEqual(rc, 6)
 
 
 class MainFlowTests(unittest.TestCase):

@@ -26,6 +26,7 @@ jobs:
   unit-tests:
     name: Unit tests / esphome:${{ matrix.esphome-version }}
     runs-on: ubuntu-24.04
+    container: ghcr.io/esphome/esphome:${{ matrix.esphome-version }}
     strategy:
       fail-fast: false
       matrix:
@@ -36,14 +37,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: Run unit tests inside esphome:${{ matrix.esphome-version }}
-        run: |-
-          docker run --rm \
-            --workdir /github/workspace \
-            -v "$(pwd)":"/github/workspace" \
-            --entrypoint python \
-            ghcr.io/esphome/esphome:${{ matrix.esphome-version }} \
-            -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+  type-check:
+    name: Type check (mypy + ty)
+    runs-on: ubuntu-24.04
+    container: ghcr.io/esphome/esphome:stable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Install type checkers
+        run: pip install --quiet mypy ty types-PyYAML
+      - name: Run mypy
+        run: python -m mypy --strict --follow-imports=silent entrypoint.py
+        env:
+          MYPYPATH: /esphome
+      - name: Run ty
+        run: ty check --extra-search-path /esphome entrypoint.py
 
   build:
     name: esphome:${{ matrix.esphome-version }} / ${{ matrix.manifest }} / ${{ matrix.os }}
