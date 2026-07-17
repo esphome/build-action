@@ -1,0 +1,7 @@
+esphome:
+  name: test-host
+  project:
+    name: esphome.example-project
+    version: "3.5.0"
+
+host:

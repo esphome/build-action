@@ -34,6 +34,7 @@ jobs:
   unit-tests:
     name: Unit tests / esphome:${{ matrix.esphome-version }}
     runs-on: ubuntu-24.04
+    container: ghcr.io/esphome/esphome:${{ matrix.esphome-version }}
     strategy:
       fail-fast: false
       matrix:
@@ -44,14 +45,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - name: Run unit tests inside esphome:${{ matrix.esphome-version }}
-        run: |-
-          docker run --rm \
-            --workdir /github/workspace \
-            -v "$(pwd)":"/github/workspace" \
-            --entrypoint python \
-            ghcr.io/esphome/esphome:${{ matrix.esphome-version }} \
-            -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+  type-check:
+    name: Type check (mypy + ty)
+    runs-on: ubuntu-24.04
+    container: ghcr.io/esphome/esphome:stable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Install type checkers
+        run: pip install --quiet mypy ty types-PyYAML
+      - name: Run mypy
+        run: python -m mypy --strict --follow-imports=silent entrypoint.py
+        env:
+          MYPYPATH: /esphome
+      - name: Run ty
+        run: ty check --extra-search-path /esphome entrypoint.py
 
   build:
     name: esphome:${{ matrix.esphome-version }} / ${{ matrix.manifest }} / ${{ matrix.os }}
@@ -130,6 +141,124 @@ jobs:
             --arg factory_sha256 "$(sha256sum test-esp32.factory.bin | head -c 64)" \
             -f tests/${{ matrix.manifest }}-manifest-template.json > /tmp/manifest.json
           diff <(jq --sort-keys . /tmp/manifest.json) <(jq --sort-keys . manifest.json)
+
+  build-platforms:
+    name: ${{ matrix.platform }} / esphome:${{ matrix.esphome-version }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        esphome-version:
+          - stable
+          - beta
+          - dev
+        platform:
+          - rp2
+          - bk72xx
+        include:
+          - platform: rp2
+            expected-name: test-rp2-rp2040
+            chip-family: RP2040
+            ota-file: test-rp2-rp2040.ota.bin
+          - platform: bk72xx
+            expected-name: test-bk72xx-bk7231n
+            chip-family: BK7231N
+            ota-file: test-bk72xx-bk7231n.uf2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Run action
+        uses: ./
+        id: esphome-build
+        with:
+          yaml-file: tests/test-${{ matrix.platform }}.yaml
+          version: ${{ matrix.esphome-version }}
+          release-summary: ${{ env.TEST_RELEASE_SUMMARY }}
+          release-url: "https://github.com/esphome/build-action"
+      - name: List files
+        run: |-
+          ls -al ${{ steps.esphome-build.outputs.name }}
+      - name: Verify output files
+        run: |
+          name="${{ steps.esphome-build.outputs.name }}"
+          [ "$name" = "${{ matrix.expected-name }}" ]
+          test -f "$name/$name.uf2"
+          test -f "$name/$name.elf"
+          test -f "$name/${{ matrix.ota-file }}"
+          jq -e \
+            --arg chip "${{ matrix.chip-family }}" \
+            --arg ota_path "${{ matrix.ota-file }}" \
+            --arg ota_md5 "$(md5sum "$name/${{ matrix.ota-file }}" | head -c 32)" \
+            --arg ota_sha256 "$(sha256sum "$name/${{ matrix.ota-file }}" | head -c 64)" \
+            '.chipFamily == $chip
+              and .ota.path == $ota_path
+              and .ota.md5 == $ota_md5
+              and .ota.sha256 == $ota_sha256
+              and .ota.release_url == "https://github.com/esphome/build-action"
+              and (.parts | not)' \
+            "$name/manifest.json"
+
+  build-host:
+    name: host / esphome:${{ matrix.esphome-version }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        esphome-version:
+          - stable
+          - beta
+          - dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Run action
+        uses: ./
+        id: esphome-build
+        with:
+          yaml-file: tests/test-host.yaml
+          version: ${{ matrix.esphome-version }}
+          release-summary: ${{ env.TEST_RELEASE_SUMMARY }}
+          release-url: "https://github.com/esphome/build-action"
+      - name: List files
+        run: |-
+          ls -al ${{ steps.esphome-build.outputs.name }}
+      - name: Verify output files
+        run: |
+          name="${{ steps.esphome-build.outputs.name }}"
+          [ "$name" = "test-host-host" ]
+          test -x "$name/$name"
+          file "$name/$name" | grep -q "ELF"
+          [ ! -e "$name/$name.elf" ]
+          jq -e \
+            --arg ota_path "$name" \
+            --arg ota_md5 "$(md5sum "$name/$name" | head -c 32)" \
+            --arg ota_sha256 "$(sha256sum "$name/$name" | head -c 64)" \
+            '.chipFamily == "HOST"
+              and .ota.path == $ota_path
+              and .ota.md5 == $ota_md5
+              and .ota.sha256 == $ota_sha256
+              and .ota.release_url == "https://github.com/esphome/build-action"
+              and (.parts | not)' \
+            "$name/manifest.json"
+
+  version-gate:
+    name: Reject unsupported ESPHome version
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Run action with too-old version
+        uses: ./
+        id: esphome-build
+        continue-on-error: true
+        with:
+          yaml-file: tests/test.yaml
+          version: "2026.6.3"
+      - name: Assert the action failed
+        run: |
+          [ "${{ steps.esphome-build.outcome }}" = "failure" ]
 
   build-substitutions:
     name: substitutions / esphome:${{ matrix.esphome-version }} / ${{ matrix.manifest }} / ${{ matrix.os }}

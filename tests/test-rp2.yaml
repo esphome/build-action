@@ -1,0 +1,8 @@
+esphome:
+  name: test-rp2
+  project:
+    name: esphome.example-project
+    version: "3.5.0"
+
+rp2:
+  board: rpipico
