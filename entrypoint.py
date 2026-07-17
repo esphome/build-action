@@ -178,8 +178,12 @@ class Config:
 
     @property
     def ota_is_factory(self) -> bool:
-        """Is the OTA image the same file as the flashable image?"""
-        return self.is_libretiny
+        """Is the OTA image the same file as the factory image?
+
+        For LibreTiny the UF2 package doubles as the OTA image; for host
+        the native executable itself is the OTA image.
+        """
+        return self.is_libretiny or self.is_host
 
     @property
     def artifacts_optional(self) -> bool:
@@ -287,10 +291,10 @@ def parse_config(config_dict: dict) -> tuple[Config | None, int]:
         variant = "nrf52"
         chip_family = "NRF52"
     elif "host" in config_dict:
-        # A native executable for the build machine's OS/arch — no
-        # flashable firmware and no manifest.
+        # A native executable for the build machine's OS/arch.
         platform = "host"
         variant = "host"
+        chip_family = "HOST"
     else:
         print("ERROR: Unable to detect the target platform from the configuration")
         return None, 1
@@ -524,9 +528,7 @@ def main(argv) -> int:
         return 1
 
     dest_ota_bin: Path | None = None
-    if config.is_host:
-        pass  # a native executable has no OTA image
-    elif config.ota_is_factory:
+    if config.ota_is_factory:
         dest_ota_bin = dest_factory_bin
     else:
         source_ota_bin = config.source_ota_bin(build_dir)
@@ -559,10 +561,6 @@ def main(argv) -> int:
         print("Copied ELF file to:", dest_elf)
 
     print("::endgroup::")
-
-    if config.is_host:
-        # A native executable is not flashable — no manifest.
-        return 0
 
     print("::group::Generate manifest")
     manifest, rc = generate_manifest_part(

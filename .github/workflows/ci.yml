@@ -200,6 +200,8 @@ jobs:
         with:
           yaml-file: tests/test-host.yaml
           version: ${{ matrix.esphome-version }}
+          release-summary: ${{ env.TEST_RELEASE_SUMMARY }}
+          release-url: "https://github.com/esphome/build-action"
       - name: List files
         run: |-
           ls -al ${{ steps.esphome-build.outputs.name }}
@@ -209,8 +211,18 @@ jobs:
           [ "$name" = "test-host-host" ]
           test -x "$name/$name"
           file "$name/$name" | grep -q "ELF"
-          [ ! -e "$name/manifest.json" ]
           [ ! -e "$name/$name.elf" ]
+          jq -e \
+            --arg ota_path "$name" \
+            --arg ota_md5 "$(md5sum "$name/$name" | head -c 32)" \
+            --arg ota_sha256 "$(sha256sum "$name/$name" | head -c 64)" \
+            '.chipFamily == "HOST"
+              and .ota.path == $ota_path
+              and .ota.md5 == $ota_md5
+              and .ota.sha256 == $ota_sha256
+              and .ota.release_url == "https://github.com/esphome/build-action"
+              and (.parts | not)' \
+            "$name/manifest.json"
 
   version-gate:
     name: Reject unsupported ESPHome version

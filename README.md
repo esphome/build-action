@@ -91,4 +91,4 @@ The firmware files depend on the platform:
   - `{name}.ota.bin` - The application update image, when available.
   - `{name}.hex` - The merged HEX image for flashing via SWD, when available.
 - Host
-  - `{name}` - A native executable that can be run directly on a machine matching the build OS/architecture (choose the runner OS/arch in your workflow to match the target). No `manifest.json` or `{name}.elf` is produced.
+  - `{name}` - A native executable that can be run directly on a machine matching the build OS/architecture (choose the runner OS/arch in your workflow to match the target); the manifest `ota` section points at this file. No `{name}.elf` is produced.

@@ -190,7 +190,7 @@ class ParseConfigHostTests(unittest.TestCase):
         assert config is not None
         self.assertEqual(config.platform, "host")
         self.assertEqual(config.variant, "host")
-        self.assertIsNone(config.chip_family)
+        self.assertEqual(config.chip_family, "HOST")
         self.assertFalse(config.has_factory_part)
         self.assertEqual(config.name, "demo-host")
 
@@ -400,13 +400,19 @@ class ConfigPathTests(unittest.TestCase):
         self.assertTrue(config.is_host)
         self.assertFalse(config.uses_uf2)
         self.assertFalse(config.is_libretiny)
-        self.assertFalse(config.ota_is_factory)
+        self.assertTrue(config.ota_is_factory)
         self.assertFalse(config.artifacts_optional)
         self.assertEqual(
             config.dest_factory_bin(Path("out")), Path("out/demo-host")
         )
         self.assertEqual(
+            config.dest_ota_bin(Path("out")), Path("out/demo-host")
+        )
+        self.assertEqual(
             config.source_factory_bin(Path("/build")), Path("/build/program")
+        )
+        self.assertEqual(
+            config.source_ota_bin(Path("/build")), Path("/build/program")
         )
         self.assertEqual(config.extra_artifacts(Path("/build"), Path("out")), [])
 
@@ -875,7 +881,7 @@ class MainFlowTests(unittest.TestCase):
                         name="demo-host",
                         platform="host",
                         variant="host",
-                        chip_family=None,
+                        chip_family="HOST",
                         has_factory_part=False,
                     ),
                     0,
@@ -895,7 +901,13 @@ class MainFlowTests(unittest.TestCase):
         self.assertTrue(os.access(binary, os.X_OK))
         self.assertFalse((out / "demo-host.ota.bin").exists())
         self.assertFalse((out / "demo-host.elf").exists())
-        self.assertFalse((out / "manifest.json").exists())
+        manifest = self._manifest("demo-host")
+        self.assertEqual(manifest["chipFamily"], "HOST")
+        self.assertEqual(manifest["ota"]["path"], "demo-host")
+        self.assertEqual(
+            manifest["ota"]["md5"], hashlib.md5(b"native-binary").hexdigest()
+        )
+        self.assertNotIn("parts", manifest)
 
     def test_old_esphome_version_fails_before_compile(self):
         compile_mock = mock.MagicMock(return_value=0)
