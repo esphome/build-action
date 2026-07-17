@@ -1,0 +1,20 @@
+extends: default
+
+# Three overrides from default, all forced by GitHub Actions conventions:
+#
+#   document-start   Workflow files conventionally omit the leading `---`.
+#                    Default only warns, but the warning is also noise.
+#   truthy keys      The workflow trigger key `on:` is parsed as the YAML 1.1
+#                    boolean `True` by the truthy rule. We can't rename the
+#                    key, so we tell yamllint not to lint keys.
+#   line-length 120  SHA-pinned `uses:` lines with a trailing `# vX.Y.Z`
+#                    comment, plus lines interpolating `${{ }}` expressions,
+#                    cannot be wrapped and exceed the default 80. Tight
+#                    enough to still catch sprawling lines.
+
+rules:
+  document-start: disable
+  truthy:
+    check-keys: false
+  line-length:
+    max: 120
