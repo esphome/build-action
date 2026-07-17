@@ -72,17 +72,13 @@ runs:
       # pulling the image. Channel tags (latest/stable/beta/dev) can't be
       # resolved here; entrypoint.py re-checks the actual version at runtime
       # using the same value, passed along via this step's `minimum` output.
-      # The minimum has a zero patch version, so comparing major.minor is
-      # enough.
       run: |-
         echo "minimum=${MINIMUM_ESPHOME_VERSION}" >> "$GITHUB_OUTPUT"
-        [[ "${MINIMUM_ESPHOME_VERSION}" =~ ^([0-9]+)\.([0-9]+) ]]
-        min_major="${BASH_REMATCH[1]}"
-        min_minor="${BASH_REMATCH[2]}"
-        if [[ "${ESPHOME_VERSION}" =~ ^([0-9]+)\.([0-9]+) ]]; then
-          major="${BASH_REMATCH[1]}"
-          minor="${BASH_REMATCH[2]}"
-          if (( major < min_major )) || { (( major == min_major )) && (( minor < min_minor )); }; then
+        [[ "${MINIMUM_ESPHOME_VERSION}" =~ ^([0-9]+)\.([0-9]+)(\.([0-9]+))? ]]
+        min_version=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + ${BASH_REMATCH[4]:-0} ))
+        if [[ "${ESPHOME_VERSION}" =~ ^([0-9]+)\.([0-9]+)(\.([0-9]+))? ]]; then
+          version=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + ${BASH_REMATCH[4]:-0} ))
+          if (( version < min_version )); then
             echo "::error::ESPHome ${ESPHOME_VERSION} is not supported by this version of the action; it requires at least ESPHome ${MINIMUM_ESPHOME_VERSION}. Pin an older release of esphome/build-action to build with older ESPHome versions."
             exit 1
           fi
