@@ -42,7 +42,7 @@ inputs:
 
 outputs:
   name:
-    description: Name of device extracted from configuration with the platform appended
+    description: Name of device extracted from configuration with the platform variant appended
     value: ${{ steps.build-step.outputs.name }}
   version:
     description: ESPHome version
@@ -60,6 +60,29 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Check ESPHome version
+      shell: bash
+      id: version-check
+      env:
+        ESPHOME_VERSION: ${{ inputs.version }}
+        # The minimum ESPHome version this action supports — the single
+        # place it is defined. Bump it here.
+        MINIMUM_ESPHOME_VERSION: "2026.7.0"
+      # Explicit version tags are checked against the action's minimum before
+      # pulling the image. Channel tags (latest/stable/beta/dev) can't be
+      # resolved here; entrypoint.py re-checks the actual version at runtime
+      # using the same value, passed along via this step's `minimum` output.
+      run: |-
+        echo "minimum=${MINIMUM_ESPHOME_VERSION}" >> "$GITHUB_OUTPUT"
+        [[ "${MINIMUM_ESPHOME_VERSION}" =~ ^([0-9]+)\.([0-9]+)(\.([0-9]+))? ]]
+        min_version=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + ${BASH_REMATCH[4]:-0} ))
+        if [[ "${ESPHOME_VERSION}" =~ ^([0-9]+)\.([0-9]+)(\.([0-9]+))? ]]; then
+          version=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + ${BASH_REMATCH[4]:-0} ))
+          if (( version < min_version )); then
+            echo "::error::ESPHome ${ESPHOME_VERSION} is not supported by this version of the action; it requires at least ESPHome ${MINIMUM_ESPHOME_VERSION}. Pin an older release of esphome/build-action to build with older ESPHome versions."
+            exit 1
+          fi
+        fi
     - name: Pull ESPHome image
       shell: bash
       run: |-
@@ -72,6 +95,7 @@ runs:
       env:
         ESPHOME_VERSION: ${{ inputs.version }}
         ENTRYPOINT_SRC: ${{ github.action_path }}/entrypoint.py
+        MINIMUM_ESPHOME_VERSION: ${{ steps.version-check.outputs.minimum }}
       run: |-
         summary=$(cat <<'ENDOFSUMMARY'
         ${{ inputs.release-summary }}
@@ -96,6 +120,7 @@ runs:
           --entrypoint /entrypoint.py \
           --user $(id -u):$(id -g) \
           -e HOME \
+          -e MINIMUM_ESPHOME_VERSION \
           -e PLATFORMIO_GLOBALLIB_DIR= \
           "ghcr.io/esphome/esphome:${ESPHOME_VERSION}" \
             ${{ inputs.yaml-file }} \
