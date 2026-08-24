@@ -123,6 +123,7 @@ runs:
           --entrypoint /entrypoint.py \
           --user $(id -u):$(id -g) \
           -e HOME \
+          -e CCACHE_DIR \
           -e MINIMUM_ESPHOME_VERSION \
           -e PLATFORMIO_GLOBALLIB_DIR= \
           "ghcr.io/esphome/esphome:${ESPHOME_VERSION}" \
