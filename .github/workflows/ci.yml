@@ -96,7 +96,7 @@ jobs:
       - name: Write version to file
         run: echo ${{ steps.esphome-build.outputs.version }} > ${{ steps.esphome-build.outputs.name }}/version
       - name: Upload ESPHome binary
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
           path: ${{ steps.esphome-build.outputs.name }}
@@ -123,7 +123,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7.0.1
       - name: Download files
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         with:
           name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
 
@@ -295,7 +295,7 @@ jobs:
       - name: Write version to file
         run: echo ${{ steps.esphome-build.outputs.version }} > ${{ steps.esphome-build.outputs.name }}/version
       - name: Upload ESPHome binary
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: build-output-substitutions-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
           path: ${{ steps.esphome-build.outputs.name }}
@@ -321,7 +321,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7.0.1
       - name: Download files
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         with:
           name: build-output-substitutions-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
       - name: List files
